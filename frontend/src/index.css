@@ -1,0 +1,169 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Guidelines page styles */
+.guideline-content {
+  @apply text-gray-700 leading-relaxed;
+}
+
+.guideline-content h1,
+.guideline-content h2,
+.guideline-content h3 {
+  @apply font-bold text-gray-900 mt-6 mb-4;
+}
+
+.guideline-content h1 {
+  @apply text-2xl;
+}
+
+.guideline-content h2 {
+  @apply text-xl;
+}
+
+.guideline-content h3 {
+  @apply text-lg;
+}
+
+.guideline-content p {
+  @apply mb-4;
+}
+
+.guideline-content ul,
+.guideline-content ol {
+  @apply mb-4 ml-6;
+}
+
+.guideline-content li {
+  @apply mb-2;
+}
+
+.guideline-content img {
+  @apply max-w-full h-auto rounded-lg my-4;
+}
+
+.guideline-content a {
+  @apply text-primary-600 hover:text-primary-700 underline;
+}
+
+.guideline-content blockquote {
+  @apply border-l-4 border-primary-300 pl-4 italic my-4;
+}
+
+/* React Quill editor styles */
+.ql-container {
+  @apply text-base;
+  font-family: inherit;
+}
+
+.ql-editor {
+  min-height: 400px;
+  cursor: text;
+}
+
+.ql-editor.ql-blank::before {
+  @apply text-gray-400 italic;
+  left: 15px;
+  right: 15px;
+}
+
+.ql-editor p,
+.ql-editor ol,
+.ql-editor ul,
+.ql-editor pre,
+.ql-editor blockquote,
+.ql-editor h1,
+.ql-editor h2,
+.ql-editor h3 {
+  margin: 0;
+  padding: 0;
+  counter-reset: list-1 list-2 list-3 list-4 list-5 list-6 list-7 list-8 list-9;
+}
+
+.ql-snow .ql-toolbar {
+  border-top: 1px solid #d1d5db;
+  border-left: 1px solid #d1d5db;
+  border-right: 1px solid #d1d5db;
+  border-bottom: none;
+  border-top-left-radius: 0.5rem;
+  border-top-right-radius: 0.5rem;
+  background: #f9fafb;
+}
+
+.ql-snow .ql-container {
+  border-bottom: 1px solid #d1d5db;
+  border-left: 1px solid #d1d5db;
+  border-right: 1px solid #d1d5db;
+  border-top: none;
+  border-bottom-left-radius: 0.5rem;
+  border-bottom-right-radius: 0.5rem;
+}
+
+.ql-snow .ql-editor {
+  padding: 12px 15px;
+}
+
+.ql-snow .ql-editor.ql-blank::before {
+  font-style: normal;
+}
+
+:root {
+  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  color-scheme: light dark;
+  color: rgba(255, 255, 255, 0.87);
+  background-color: #242424;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    color: #213547;
+    background-color: #ffffff;
+  }
+}
+
+@layer base {
+  body {
+    @apply bg-gray-50 text-gray-900;
+  }
+}
+
+@layer components {
+  .btn {
+    @apply px-4 py-2 rounded-lg font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2;
+  }
+  
+  .btn-primary {
+    @apply bg-primary-500 text-white hover:bg-primary-600 active:bg-primary-700 focus:ring-primary-500 shadow-sm hover:shadow;
+  }
+  
+  .btn-secondary {
+    @apply bg-gray-100 text-gray-900 hover:bg-gray-200 active:bg-gray-300 focus:ring-gray-500 border border-gray-300;
+  }
+  
+  .btn-danger {
+    @apply bg-red-600 text-white hover:bg-red-700 active:bg-red-800 focus:ring-red-500 shadow-sm hover:shadow;
+  }
+  
+  .input {
+    @apply w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200;
+  }
+  
+  .card {
+    @apply bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow duration-200;
+  }
+}
+

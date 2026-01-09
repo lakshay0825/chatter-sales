@@ -1,0 +1,196 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  CHATTER_MANAGER
+  CHATTER
+}
+
+enum SaleType {
+  CAM
+  TIP
+  PPV
+  INITIAL
+  CUSTOM
+}
+
+enum SaleStatus {
+  ONLINE
+  OFFLINE
+}
+
+model User {
+  id                String    @id @default(cuid())
+  email             String    @unique
+  password          String
+  name              String
+  role              UserRole  @default(CHATTER)
+  avatar            String?
+  identificationPhoto String?
+  commissionPercent Float?    @default(0)
+  fixedSalary       Float?    @default(0)
+  isActive          Boolean   @default(true)
+  emailVerified     Boolean   @default(false)
+  emailVerifiedAt   DateTime?
+  invitationToken   String?   @unique
+  invitationExpires DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Relations
+  sales             Sale[]
+  shifts            Shift[]
+  createdShifts     Shift[]   @relation("ShiftCreator")
+  goals             Goal[]
+
+  @@index([email])
+  @@index([role])
+  @@map("users")
+}
+
+model Creator {
+  id                      String    @id @default(cuid())
+  name                    String    @unique
+  avatar                  String?
+  identificationPhoto     String?
+  compensationType        String    // "PERCENTAGE" or "SALARY"
+  revenueSharePercent     Float?    // Percentage if compensationType is PERCENTAGE
+  fixedSalaryCost         Float?    // Monthly amount if compensationType is SALARY
+  isActive                Boolean   @default(true)
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+
+  // Relations
+  sales                   Sale[]
+  monthlyFinancials       MonthlyFinancial[]
+  goals                   Goal[]
+
+  @@map("creators")
+}
+
+model Sale {
+  id        String     @id @default(cuid())
+  amount    Float
+  saleType  SaleType
+  status    SaleStatus @default(ONLINE)
+  note      String?
+  saleDate  DateTime   @default(now())
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  // Relations
+  userId    String
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  creatorId String
+  creator   Creator    @relation(fields: [creatorId], references: [id], onDelete: Restrict)
+
+  @@index([userId])
+  @@index([creatorId])
+  @@index([saleDate])
+  @@index([saleType])
+  @@index([status])
+  @@map("sales")
+}
+
+model Shift {
+  id        String   @id @default(cuid())
+  date      DateTime
+  startTime String   // "09:00", "14:30", "20:00"
+  endTime   String   // "14:30", "20:00", "01:00"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdBy String?
+  creator   User?    @relation("ShiftCreator", fields: [createdBy], references: [id])
+
+  @@index([date])
+  @@index([userId])
+  @@unique([date, startTime, userId])
+  @@map("shifts")
+}
+
+model MonthlyFinancial {
+  id                String   @id @default(cuid())
+  year              Int
+  month             Int      // 1-12
+  grossRevenue      Float    @default(0)
+  marketingCosts    Float    @default(0)
+  toolCosts         Float    @default(0)
+  otherCosts        Float    @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relations
+  creatorId         String
+  creator           Creator  @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+
+  @@unique([creatorId, year, month])
+  @@index([year, month])
+  @@map("monthly_financials")
+}
+
+model Goal {
+  id          String   @id @default(cuid())
+  userId      String?
+  creatorId   String?
+  type        String   // "SALES", "COMMISSION", "REVENUE"
+  target      Float
+  year        Int
+  month       Int      // 1-12, 0 for yearly goals
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  user        User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  creator     Creator? @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+
+  @@index([userId, year, month])
+  @@index([creatorId, year, month])
+  @@index([year, month])
+  @@map("goals")
+}
+
+model Guideline {
+  id        String   @id @default(cuid())
+  title     String
+  content   String   @db.Text // HTML content from rich text editor
+  version   Int      @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  updatedBy String?  // User ID who last updated
+
+  @@map("guidelines")
+}
+
+model Lesson {
+  id           String   @id @default(cuid())
+  title        String
+  description  String?
+  videoUrl     String
+  thumbnailUrl String?
+  duration     Int      // duration in seconds
+  category     String
+  views        Int      @default(0)
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([category])
+  @@index([createdAt])
+  @@index([views])
+  @@map("lessons")
+}
+
