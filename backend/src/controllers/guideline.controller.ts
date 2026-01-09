@@ -1,6 +1,6 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { guidelineService } from '../services/guideline.service';
-import { ApiResponse } from '../types/api';
+import { ApiResponse } from '../types';
 import { saveUploadedFile, validateImageFile } from '../utils/upload';
 import { ValidationError } from '../utils/errors';
 
@@ -9,7 +9,7 @@ export const guidelineController = {
    * Get the latest guideline
    */
   async getLatestGuidelineHandler(
-    request: FastifyRequest,
+    _request: FastifyRequest,
     reply: FastifyReply
   ): Promise<void> {
     try {
@@ -129,7 +129,7 @@ export const guidelineController = {
    * Get all guidelines
    */
   async getAllGuidelinesHandler(
-    request: FastifyRequest,
+    _request: FastifyRequest,
     reply: FastifyReply
   ): Promise<void> {
     try {

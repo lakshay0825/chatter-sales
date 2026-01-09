@@ -23,7 +23,7 @@ export async function monthlyFinancialRoutes(fastify: FastifyInstance) {
         security: [{ bearerAuth: [] }],
       },
     },
-    getMonthlyFinancialsHandler
+    getMonthlyFinancialsHandler as any
   );
 
   // Get monthly financial for specific creator, year, month
@@ -67,7 +67,7 @@ export async function monthlyFinancialRoutes(fastify: FastifyInstance) {
         },
       },
     },
-    upsertMonthlyFinancialHandler
+    upsertMonthlyFinancialHandler as any
   );
 }
 

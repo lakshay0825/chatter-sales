@@ -70,7 +70,7 @@ export async function dashboardRoutes(fastify: FastifyInstance) {
         },
       },
     },
-    getAdminDashboardHandler
+    getAdminDashboardHandler as any
   );
 }
 

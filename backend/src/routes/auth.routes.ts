@@ -45,7 +45,7 @@ export async function authRoutes(fastify: FastifyInstance) {
         },
       },
     },
-    login
+    login as any
   );
 
   // Register/Activate account
@@ -89,7 +89,7 @@ export async function authRoutes(fastify: FastifyInstance) {
         },
       },
     },
-    register
+    register as any
   );
 
   // Get current user
@@ -147,7 +147,7 @@ export async function authRoutes(fastify: FastifyInstance) {
         },
       },
     },
-    updateCurrentUserHandler
+    updateCurrentUserHandler as any
   );
 
   // Change password
@@ -178,7 +178,7 @@ export async function authRoutes(fastify: FastifyInstance) {
         },
       },
     },
-    changePassword
+    changePassword as any
   );
 }
 

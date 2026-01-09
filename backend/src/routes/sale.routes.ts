@@ -26,7 +26,7 @@ export async function saleRoutes(fastify: FastifyInstance) {
         security: [{ bearerAuth: [] }],
       },
     },
-    createSaleHandler
+    createSaleHandler as any
   );
 
   // Get all sales (with filters)
@@ -53,7 +53,7 @@ export async function saleRoutes(fastify: FastifyInstance) {
         },
       },
     },
-    getSalesHandler
+    getSalesHandler as any
   );
 
   // Export sales to CSV
@@ -67,7 +67,7 @@ export async function saleRoutes(fastify: FastifyInstance) {
         security: [{ bearerAuth: [] }],
       },
     },
-    exportSalesHandler
+    exportSalesHandler as any
   );
 
   // Get sale by ID
@@ -100,7 +100,7 @@ export async function saleRoutes(fastify: FastifyInstance) {
         security: [{ bearerAuth: [] }],
       },
     },
-    updateSaleHandler
+    updateSaleHandler as any
   );
 
   // Delete sale (managers and admins only)

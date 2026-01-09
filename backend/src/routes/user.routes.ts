@@ -26,7 +26,7 @@ export async function userRoutes(fastify: FastifyInstance) {
         security: [{ bearerAuth: [] }],
       },
     },
-    createUserHandler
+    createUserHandler as any
   );
 
   // Get all users
@@ -79,7 +79,7 @@ export async function userRoutes(fastify: FastifyInstance) {
         security: [{ bearerAuth: [] }],
       },
     },
-    updateUserHandler
+    updateUserHandler as any
   );
 
   // Delete user (Admin only)
@@ -99,7 +99,7 @@ export async function userRoutes(fastify: FastifyInstance) {
         },
       },
     },
-    deleteUserHandler
+    deleteUserHandler as any
   );
 
   // Upload identification photo (Admin only)
@@ -120,7 +120,7 @@ export async function userRoutes(fastify: FastifyInstance) {
         },
       },
     },
-    uploadUserIdentificationPhotoHandler
+    uploadUserIdentificationPhotoHandler as any
   );
 }
 

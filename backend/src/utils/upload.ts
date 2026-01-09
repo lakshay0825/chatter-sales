@@ -45,8 +45,8 @@ export async function saveUploadedFile(
   writeStream.write(buffer);
   writeStream.end();
   
-  await new Promise((resolve, reject) => {
-    writeStream.on('finish', resolve);
+  await new Promise<void>((resolve, reject) => {
+    writeStream.on('finish', () => resolve());
     writeStream.on('error', reject);
   });
   

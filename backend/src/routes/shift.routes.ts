@@ -23,7 +23,7 @@ export async function shiftRoutes(fastify: FastifyInstance) {
         security: [{ bearerAuth: [] }],
       },
     },
-    getShiftsHandler
+    getShiftsHandler as any
   );
 
   fastify.get(
@@ -36,7 +36,7 @@ export async function shiftRoutes(fastify: FastifyInstance) {
         security: [{ bearerAuth: [] }],
       },
     },
-    getShiftHandler
+    getShiftHandler as any
   );
 
   // Modify routes require manager or admin
@@ -50,7 +50,7 @@ export async function shiftRoutes(fastify: FastifyInstance) {
         security: [{ bearerAuth: [] }],
       },
     },
-    createShiftHandler
+    createShiftHandler as any
   );
 
   fastify.put(
@@ -63,7 +63,7 @@ export async function shiftRoutes(fastify: FastifyInstance) {
         security: [{ bearerAuth: [] }],
       },
     },
-    updateShiftHandler
+    updateShiftHandler as any
   );
 
   fastify.delete(
@@ -76,7 +76,7 @@ export async function shiftRoutes(fastify: FastifyInstance) {
         security: [{ bearerAuth: [] }],
       },
     },
-    deleteShiftHandler
+    deleteShiftHandler as any
   );
 
   // Auto-generate weekly shifts (Admin only)
@@ -90,7 +90,7 @@ export async function shiftRoutes(fastify: FastifyInstance) {
         security: [{ bearerAuth: [] }],
       },
     },
-    autoGenerateShiftsHandler
+    autoGenerateShiftsHandler as any
   );
 }
 

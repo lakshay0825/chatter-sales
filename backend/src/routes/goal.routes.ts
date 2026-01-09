@@ -48,7 +48,7 @@ export async function goalRoutes(fastify: FastifyInstance) {
         security: [{ bearerAuth: [] }],
       },
     },
-    createGoalHandler
+    createGoalHandler as any
   );
 
   // Get all goals
@@ -123,7 +123,7 @@ export async function goalRoutes(fastify: FastifyInstance) {
         security: [{ bearerAuth: [] }],
       },
     },
-    updateGoalHandler
+    updateGoalHandler as any
   );
 
   // Delete goal (Admin only)
@@ -143,7 +143,7 @@ export async function goalRoutes(fastify: FastifyInstance) {
         },
       },
     },
-    deleteGoalHandler
+    deleteGoalHandler as any
   );
 }
 

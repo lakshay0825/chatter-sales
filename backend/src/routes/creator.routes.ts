@@ -64,7 +64,7 @@ export async function creatorRoutes(fastify: FastifyInstance) {
         security: [{ bearerAuth: [] }],
       },
     },
-    createCreatorHandler
+    createCreatorHandler as any
   );
 
   fastify.put(
@@ -77,7 +77,7 @@ export async function creatorRoutes(fastify: FastifyInstance) {
         security: [{ bearerAuth: [] }],
       },
     },
-    updateCreatorHandler
+    updateCreatorHandler as any
   );
 
   fastify.delete(
@@ -96,7 +96,7 @@ export async function creatorRoutes(fastify: FastifyInstance) {
         },
       },
     },
-    deleteCreatorHandler
+    deleteCreatorHandler as any
   );
 
   // Upload identification photo (Admin only)
@@ -117,7 +117,7 @@ export async function creatorRoutes(fastify: FastifyInstance) {
         },
       },
     },
-    uploadCreatorIdentificationPhotoHandler
+    uploadCreatorIdentificationPhotoHandler as any
   );
 }
 

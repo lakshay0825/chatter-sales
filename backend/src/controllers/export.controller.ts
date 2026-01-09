@@ -1,7 +1,6 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { GetSalesQuery } from '../validations/sale.schema';
 import { exportSalesToExcel, exportSalesToPDF, exportCommissionsToExcel, exportShiftsToExcel } from '../services/export.service';
-import { ApiResponse } from '../types';
 
 export async function exportSalesExcelHandler(
   request: FastifyRequest<{ Querystring: GetSalesQuery }>,

@@ -55,7 +55,7 @@ export async function lessonRoutes(fastify: FastifyInstance) {
         },
       },
     },
-    createLessonHandler
+    createLessonHandler as any
   );
 
   fastify.put(
@@ -74,7 +74,7 @@ export async function lessonRoutes(fastify: FastifyInstance) {
         },
       },
     },
-    updateLessonHandler
+    updateLessonHandler as any
   );
 
   fastify.delete(
@@ -93,7 +93,7 @@ export async function lessonRoutes(fastify: FastifyInstance) {
         },
       },
     },
-    deleteLessonHandler
+    deleteLessonHandler as any
   );
 
   fastify.post(

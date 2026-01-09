@@ -5,8 +5,6 @@ import {
   exportCommissionsExcelHandler,
   exportShiftsExcelHandler,
 } from '../controllers/export.controller';
-import { getSalesQuerySchema } from '../validations/sale.schema';
-import { validate } from '../middleware/validate';
 import { authenticate } from '../middleware/auth';
 
 export async function exportRoutes(fastify: FastifyInstance) {

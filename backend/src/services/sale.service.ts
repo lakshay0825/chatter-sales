@@ -1,5 +1,5 @@
 import { prisma } from '../config/database';
-import { SaleType, SaleStatus, UserRole } from '@prisma/client';
+import { SaleStatus, UserRole } from '@prisma/client';
 import { NotFoundError, ForbiddenError } from '../utils/errors';
 import { CreateSaleInput, UpdateSaleInput, GetSalesQuery } from '../validations/sale.schema';
 import { isRealTimeSale, canEditSale } from '../utils/timezone';
@@ -264,7 +264,7 @@ export async function updateSale(
 export async function deleteSale(
   saleId: string,
   userRole: UserRole,
-  userId: string
+  _userId: string
 ) {
   const sale = await prisma.sale.findUnique({
     where: { id: saleId },

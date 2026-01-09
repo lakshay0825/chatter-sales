@@ -85,7 +85,7 @@ export default async function guidelineRoutes(fastify: FastifyInstance) {
         },
       },
     },
-    guidelineController.createGuidelineHandler
+    guidelineController.createGuidelineHandler as any
   );
 
   // Update guideline (admin only)
@@ -112,7 +112,7 @@ export default async function guidelineRoutes(fastify: FastifyInstance) {
         },
       },
     },
-    guidelineController.updateGuidelineHandler
+    guidelineController.updateGuidelineHandler as any
   );
 }
 

@@ -1,6 +1,6 @@
 import { prisma } from '../config/database';
 import { UserRole } from '@prisma/client';
-import { NotFoundError, ForbiddenError } from '../utils/errors';
+import { NotFoundError } from '../utils/errors';
 import { calculateCommission, getUserSalesTotal, calculateTotalCommissions } from './commission.service';
 
 /**

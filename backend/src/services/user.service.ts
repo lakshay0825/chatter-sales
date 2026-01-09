@@ -1,7 +1,7 @@
 import { prisma } from '../config/database';
 import { UserRole } from '@prisma/client';
 import { NotFoundError, ConflictError, ValidationError } from '../utils/errors';
-import { generateInvitationToken, hashPassword } from './auth.service';
+import { generateInvitationToken } from './auth.service';
 import { sendInvitationEmail } from '../utils/email';
 import { CreateUserInput, UpdateUserInput } from '../validations/user.schema';
 

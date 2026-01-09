@@ -4,10 +4,11 @@ import { UnauthorizedError, ForbiddenError } from '../utils/errors';
 
 /**
  * Extend FastifyRequest to include user property
+ * We override the default JWT user type with our JWTPayload
  */
-declare module 'fastify' {
-  interface FastifyRequest {
-    user?: JWTPayload;
+declare module '@fastify/jwt' {
+  interface FastifyJWT {
+    user: JWTPayload;
   }
 }
 
@@ -30,11 +31,12 @@ export async function authenticate(
  */
 export function requireRole(...allowedRoles: string[]) {
   return async (request: FastifyRequest, _reply: FastifyReply): Promise<void> => {
-    if (!request.user) {
+    const user = request.user as JWTPayload | undefined;
+    if (!user) {
       throw new UnauthorizedError('Authentication required');
     }
 
-    if (!allowedRoles.includes(request.user.role)) {
+    if (!allowedRoles.includes(user.role)) {
       throw new ForbiddenError('Insufficient permissions');
     }
   };
@@ -50,3 +52,13 @@ export const requireAdmin = requireRole('ADMIN');
  */
 export const requireManager = requireRole('ADMIN', 'CHATTER_MANAGER');
 
+/**
+ * Helper function to safely get user from request
+ */
+export function getUser(request: FastifyRequest): JWTPayload {
+  const user = request.user as JWTPayload | undefined;
+  if (!user) {
+    throw new UnauthorizedError('Authentication required');
+  }
+  return user;
+}
