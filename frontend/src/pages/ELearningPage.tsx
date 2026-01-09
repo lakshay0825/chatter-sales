@@ -45,7 +45,7 @@ export default function ELearningPage() {
 
   const filteredLessons = lessons.filter((lesson) => {
     const matchesSearch = lesson.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         lesson.description.toLowerCase().includes(searchQuery.toLowerCase());
+                         (lesson.description?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false);
     const matchesCategory = selectedCategory === 'All Categories' || lesson.category === selectedCategory;
     return matchesSearch && matchesCategory;
   });
@@ -374,7 +374,14 @@ function UploadLessonModal({
 }) {
   const [isUploading, setIsUploading] = useState(false);
   const [detectedDuration, setDetectedDuration] = useState<number | null>(lesson?.duration ?? null);
-  const { register, handleSubmit, formState: { errors }, reset } = useForm({
+  const { register, handleSubmit, formState: { errors }, reset } = useForm<{
+    title: string;
+    description: string;
+    category: string;
+    notes: string;
+    video?: FileList;
+    thumbnail?: FileList;
+  }>({
     defaultValues: {
       title: lesson?.title || '',
       description: lesson?.description || '',

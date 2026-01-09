@@ -199,7 +199,7 @@ export default function ShiftsPage() {
     });
     
     if (currentWeekShifts.length === 0) {
-      toast.info('No shifts to clear for this week');
+      toast('No shifts to clear for this week', { icon: 'ℹ️' });
       return;
     }
 

@@ -3,7 +3,7 @@ import { X } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Sale, SaleType, Creator } from '../types';
+import { Sale, SaleType, Creator, UserRole } from '../types';
 import { saleService, UpdateSaleData } from '../services/sale.service';
 import { creatorService } from '../services/creator.service';
 import { useAuthStore } from '../store/authStore';
@@ -47,7 +47,6 @@ export default function EditSaleModal({
     handleSubmit,
     formState: { errors },
     reset,
-    watch,
   } = useForm<UpdateSaleFormData>({
     resolver: zodResolver(updateSaleSchema),
   });
@@ -87,7 +86,7 @@ export default function EditSaleModal({
   const loadUsers = async () => {
     try {
       const { userService } = await import('../services/user.service');
-      const data = await userService.getUsers({ role: 'CHATTER' });
+      const data = await userService.getUsers({ role: UserRole.CHATTER });
       setUsers(data);
     } catch (error) {
       // Silently fail
