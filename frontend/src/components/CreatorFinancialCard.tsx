@@ -3,7 +3,6 @@ import { X, Edit2, Save } from 'lucide-react';
 import { monthlyFinancialService } from '../services/monthlyFinancial.service';
 import toast from 'react-hot-toast';
 import { getUserFriendlyError } from '../utils/errorHandler';
-import { getMonthName } from '../utils/date';
 
 interface CreatorFinancialCardProps {
   creatorId: string;
@@ -30,7 +29,6 @@ export default function CreatorFinancialCard({
   creatorAvatar,
   compensationType,
   revenueSharePercent,
-  fixedSalaryCost,
   grossRevenue: initialGrossRevenue,
   totalSalesAmount,
   creatorEarnings, // Already calculated from totalSalesAmount in backend
