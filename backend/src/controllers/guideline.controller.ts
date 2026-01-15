@@ -168,11 +168,15 @@ export const guidelineController = {
       }
 
       // Save file
-      const filePath = await saveUploadedFile(data, 'guidelines');
+      const relativePath = await saveUploadedFile(data, 'guidelines');
+
+      // Convert to absolute URL
+      const baseUrl = process.env.API_BASE_URL || `${request.protocol}://${request.headers.host}`;
+      const absoluteUrl = `${String(baseUrl).replace(/\/$/, '')}${relativePath}`;
 
       const response: ApiResponse<{ url: string }> = {
         success: true,
-        data: { url: `/${filePath}` },
+        data: { url: absoluteUrl },
         message: 'Image uploaded successfully',
       };
 

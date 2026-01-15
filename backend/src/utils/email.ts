@@ -19,7 +19,8 @@ export async function sendInvitationEmail(
   name: string,
   invitationToken: string
 ): Promise<void> {
-  const invitationUrl = `${process.env.APP_URL || 'http://localhost:3000'}/register?token=${invitationToken}`;
+  const frontendUrl = process.env.FRONTEND_URL || process.env.APP_URL || 'http://localhost:5173';
+  const invitationUrl = `${frontendUrl}/register?token=${invitationToken}`;
 
   const mailOptions = {
     from: process.env.EMAIL_FROM || 'noreply@creatoradvisor.it',

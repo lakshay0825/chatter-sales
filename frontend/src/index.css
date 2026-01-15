@@ -143,7 +143,7 @@ body {
 
 @layer components {
   .btn {
-    @apply px-4 py-2 rounded-lg font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2;
+    @apply px-4 py-2 rounded-lg font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 text-sm sm:text-base;
   }
   
   .btn-primary {
@@ -159,11 +159,32 @@ body {
   }
   
   .input {
-    @apply w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200;
+    @apply w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200;
   }
   
   .card {
-    @apply bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow duration-200;
+    @apply bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6 hover:shadow-md transition-shadow duration-200;
+  }
+}
+
+/* Mobile responsive improvements */
+@media (max-width: 640px) {
+  .card {
+    @apply p-4;
+  }
+  
+  /* Ensure modals are full width on mobile */
+  .modal-content {
+    @apply w-full mx-2;
+  }
+  
+  /* Better spacing for mobile tables */
+  table {
+    @apply text-sm;
+  }
+  
+  th, td {
+    @apply px-2 py-2;
   }
 }
 

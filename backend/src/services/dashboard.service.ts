@@ -216,7 +216,7 @@ export async function getAdminDashboard(month: number, year: number, cumulative:
         
         totalCommissions += chatter.fixedSalary * months;
       }
-    }
+  }
   } else {
     totalCommissions = await calculateTotalCommissions(month, year);
   }
@@ -241,6 +241,17 @@ export async function getAdminDashboard(month: number, year: number, cumulative:
               year,
               month,
             },
+      },
+      sales: {
+        where: {
+          saleDate: {
+            gte: startDate,
+            lte: endDate,
+          },
+        },
+        select: {
+          amount: true,
+        },
       },
     },
   });
@@ -279,16 +290,24 @@ export async function getAdminDashboard(month: number, year: number, cumulative:
       };
     }
 
-    // Calculate creator earnings
+    // Calculate total sales amount for this creator in the selected period
+    const totalSalesAmount = creator.sales.reduce((sum, sale) => sum + sale.amount, 0);
+
+    // Calculate creator earnings based on actual sales
+    // For PERCENTAGE: earnings = (total sales * percentage) / 100
+    // For SALARY: earnings = fixed salary cost
     let creatorEarnings = 0;
     if (creator.compensationType === 'PERCENTAGE' && creator.revenueSharePercent) {
-      creatorEarnings = (financial.grossRevenue * creator.revenueSharePercent) / 100;
+      creatorEarnings = (totalSalesAmount * creator.revenueSharePercent) / 100;
     } else if (creator.compensationType === 'SALARY' && creator.fixedSalaryCost) {
       creatorEarnings = creator.fixedSalaryCost;
     }
 
-    // Calculate net revenue
-    const netRevenue = financial.grossRevenue - creatorEarnings - financial.marketingCosts - financial.toolCosts - financial.otherCosts;
+    // Calculate net revenue (total sales minus creator earnings only)
+    const netRevenue = totalSalesAmount - creatorEarnings;
+    
+    // Calculate agency profit (net revenue minus all costs)
+    const agencyProfit = netRevenue - financial.marketingCosts - financial.toolCosts - financial.otherCosts;
 
     return {
       creatorId: creator.id,
@@ -296,12 +315,14 @@ export async function getAdminDashboard(month: number, year: number, cumulative:
       compensationType: creator.compensationType,
       revenueSharePercent: creator.revenueSharePercent,
       fixedSalaryCost: creator.fixedSalaryCost,
-      grossRevenue: financial.grossRevenue,
+      grossRevenue: financial.grossRevenue, // Keep manually entered gross revenue for display
+      totalSalesAmount, // Add actual sales amount
       creatorEarnings,
       marketingCosts: financial.marketingCosts,
       toolCosts: financial.toolCosts,
       otherCosts: financial.otherCosts,
       netRevenue,
+      agencyProfit,
     };
   });
 

@@ -21,6 +21,11 @@ export interface GetShiftsParams {
   userId?: string;
 }
 
+export interface ClearShiftsRangePayload {
+  startDate: string;
+  endDate: string;
+}
+
 export const shiftService = {
   async getShifts(params: GetShiftsParams = {}): Promise<Shift[]> {
     const response = await api.get<ApiResponse<Shift[]>>('/shifts', { params });
@@ -59,6 +64,10 @@ export const shiftService = {
       generateForYear,
     });
     return response.data.data!;
+  },
+
+  async clearShiftsRange(payload: ClearShiftsRangePayload): Promise<void> {
+    await api.post('/shifts/clear-range', payload);
   },
 };
 

@@ -31,11 +31,13 @@ export interface AdminDashboardData {
     revenueSharePercent?: number;
     fixedSalaryCost?: number;
     grossRevenue: number;
+    totalSalesAmount: number;
     creatorEarnings: number;
     marketingCosts: number;
     toolCosts: number;
     otherCosts: number;
     netRevenue: number;
+    agencyProfit: number;
   }>;
 }
 

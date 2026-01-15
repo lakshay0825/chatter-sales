@@ -9,6 +9,7 @@ import { creatorService } from '../services/creator.service';
 import { useAuthStore } from '../store/authStore';
 import { canEditSale, canReassignSales } from '../utils/permissions';
 import toast from 'react-hot-toast';
+import { getUserFriendlyError } from '../utils/errorHandler';
 
 const updateSaleSchema = z.object({
   creatorId: z.string().min(1, 'Creator is required'),
@@ -79,7 +80,7 @@ export default function EditSaleModal({
       }
     } catch (error: any) {
       console.error('EditSaleModal: Failed to load creators:', error);
-      toast.error(error.response?.data?.error || 'Failed to load creators');
+      toast.error(getUserFriendlyError(error, { action: 'load', entity: 'creators' }));
     }
   };
 
@@ -132,7 +133,7 @@ export default function EditSaleModal({
       onSuccess();
       onClose();
     } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Failed to update sale');
+      toast.error(getUserFriendlyError(error, { action: 'update', entity: 'sale' }));
     } finally {
       setIsLoading(false);
     }
@@ -141,26 +142,29 @@ export default function EditSaleModal({
   if (!isOpen || !sale) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
+      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900">Edit Sale</h2>
-            <p className="text-sm text-gray-600 mt-1">
-              {!canEdit && 'This sale cannot be edited (24-hour limit or insufficient permissions)'}
-            </p>
+        <div className="flex items-start sm:items-center justify-between p-4 sm:p-6 border-b border-gray-200">
+          <div className="flex-1 pr-2">
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Edit Sale</h2>
+            {!canEdit && (
+              <p className="text-xs sm:text-sm text-gray-600 mt-1">
+                This sale cannot be edited (24-hour limit or insufficient permissions)
+              </p>
+            )}
           </div>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            className="text-gray-400 hover:text-gray-600 transition-colors flex-shrink-0 p-1"
+            aria-label="Close"
           >
-            <X className="w-6 h-6" />
+            <X className="w-5 h-5 sm:w-6 sm:h-6" />
           </button>
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-6">
+        <form onSubmit={handleSubmit(onSubmit)} className="p-4 sm:p-6 space-y-4 sm:space-y-6">
           {/* Creator Selection */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Creator</label>
@@ -258,18 +262,18 @@ export default function EditSaleModal({
           </div>
 
           {/* Actions */}
-          <div className="flex items-center justify-end gap-4 pt-4 border-t border-gray-200">
+          <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 sm:gap-4 pt-4 border-t border-gray-200">
             <button
               type="button"
               onClick={onClose}
-              className="btn btn-secondary"
+              className="btn btn-secondary w-full sm:w-auto"
               disabled={isLoading}
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="btn btn-primary"
+              className="btn btn-primary w-full sm:w-auto"
               disabled={isLoading || !canEdit}
             >
               {isLoading ? 'Updating...' : 'Update Sale'}

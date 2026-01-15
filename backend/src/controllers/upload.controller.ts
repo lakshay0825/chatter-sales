@@ -26,10 +26,14 @@ export async function uploadUserIdentificationPhotoHandler(
   }
 
   // Save file
-  const filePath = await saveUploadedFile(data, 'users');
+  const relativePath = await saveUploadedFile(data, 'users');
 
-  // Update user with file path
-  const user = await updateUser(id, { identificationPhoto: filePath });
+  // Convert to absolute URL
+  const baseUrl = process.env.API_BASE_URL || `${request.protocol}://${request.headers.host}`;
+  const absoluteUrl = `${String(baseUrl).replace(/\/$/, '')}${relativePath}`;
+
+  // Update user with absolute URL
+  const user = await updateUser(id, { identificationPhoto: absoluteUrl });
 
   const response: ApiResponse<typeof user> = {
     success: true,
@@ -61,10 +65,14 @@ export async function uploadCreatorIdentificationPhotoHandler(
   }
 
   // Save file
-  const filePath = await saveUploadedFile(data, 'creators');
+  const relativePath = await saveUploadedFile(data, 'creators');
 
-  // Update creator with file path
-  const creator = await updateCreator(id, { identificationPhoto: filePath });
+  // Convert to absolute URL
+  const baseUrl = process.env.API_BASE_URL || `${request.protocol}://${request.headers.host}`;
+  const absoluteUrl = `${String(baseUrl).replace(/\/$/, '')}${relativePath}`;
+
+  // Update creator with absolute URL
+  const creator = await updateCreator(id, { identificationPhoto: absoluteUrl });
 
   const response: ApiResponse<typeof creator> = {
     success: true,

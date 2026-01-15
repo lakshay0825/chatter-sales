@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { X, Edit2, Save } from 'lucide-react';
 import { monthlyFinancialService } from '../services/monthlyFinancial.service';
 import toast from 'react-hot-toast';
+import { getUserFriendlyError } from '../utils/errorHandler';
 import { getMonthName } from '../utils/date';
 
 interface CreatorFinancialCardProps {
@@ -12,6 +13,7 @@ interface CreatorFinancialCardProps {
   revenueSharePercent?: number;
   fixedSalaryCost?: number;
   grossRevenue: number;
+  totalSalesAmount: number;
   creatorEarnings: number;
   marketingCosts: number;
   toolCosts: number;
@@ -30,10 +32,12 @@ export default function CreatorFinancialCard({
   revenueSharePercent,
   fixedSalaryCost,
   grossRevenue: initialGrossRevenue,
-  creatorEarnings: _creatorEarnings, // Used for display consistency, but we recalculate from grossRevenue
+  totalSalesAmount,
+  creatorEarnings, // Already calculated from totalSalesAmount in backend
   marketingCosts: initialMarketingCosts,
   toolCosts: initialToolCosts,
   otherCosts: initialOtherCosts,
+  netRevenue: initialNetRevenue,
   month,
   year,
   onUpdate,
@@ -45,13 +49,10 @@ export default function CreatorFinancialCard({
   const [toolCosts, setToolCosts] = useState(initialToolCosts);
   const [otherCosts, setOtherCosts] = useState(initialOtherCosts);
 
-  // Calculate derived values
-  const calculatedCreatorEarnings =
-    compensationType === 'PERCENTAGE' && revenueSharePercent
-      ? (grossRevenue * revenueSharePercent) / 100
-      : fixedSalaryCost || 0;
-
-  const netRevenue = grossRevenue - calculatedCreatorEarnings;
+  // Earnings are calculated from actual sales (totalSalesAmount), not from manually entered grossRevenue
+  // The backend already calculates this correctly, so we use the provided creatorEarnings
+  // Calculate derived values based on actual sales
+  const netRevenue = initialNetRevenue; // Already calculated from totalSalesAmount - creatorEarnings
   const agencyProfit = netRevenue - marketingCosts - toolCosts - otherCosts;
 
   const handleSave = async () => {
@@ -67,7 +68,7 @@ export default function CreatorFinancialCard({
       setIsEditing(false);
       onUpdate();
     } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Failed to update financial data');
+      toast.error(getUserFriendlyError(error, { action: 'update', entity: 'financial data' }));
     } finally {
       setIsLoading(false);
     }
@@ -130,33 +131,43 @@ export default function CreatorFinancialCard({
 
       {/* Financial Breakdown */}
       <div className="space-y-4">
-        {/* Revenue */}
+        {/* Total Sales (from all chatters) */}
         <div className="flex justify-between items-center">
-          <span className="text-sm text-gray-600">Revenue in {getMonthName(month)}</span>
+          <span className="text-sm text-gray-600">Total Sales (All Chatters)</span>
+          <span className="text-sm font-medium text-gray-900">
+            ${totalSalesAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </span>
+        </div>
+
+        {/* Earnings (calculated from actual sales) */}
+        <div className="flex justify-between items-center">
+          <span className="text-sm text-gray-600">
+            {compensationType === 'PERCENTAGE' 
+              ? `Creator Earnings: ${revenueSharePercent}% of Sales` 
+              : 'Creator Earnings: Fixed Salary'}
+          </span>
+          <span className="text-sm font-medium text-red-600">
+            -${creatorEarnings.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </span>
+        </div>
+
+        {/* Manual Gross Revenue (for reference) */}
+        <div className="flex justify-between items-center pt-2 border-t border-gray-100">
+          <span className="text-xs text-gray-500">Manual Gross Revenue (Reference)</span>
           {isEditing ? (
             <input
               type="number"
               value={grossRevenue}
               onChange={(e) => setGrossRevenue(parseFloat(e.target.value) || 0)}
-              className="w-32 px-3 py-1 text-sm font-medium text-gray-900 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary-500"
+              className="w-32 px-3 py-1 text-xs font-medium text-gray-600 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary-500"
               step="0.01"
               min="0"
             />
           ) : (
-            <span className="text-sm font-medium text-gray-900">
+            <span className="text-xs font-medium text-gray-500">
               ${grossRevenue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </span>
           )}
-        </div>
-
-        {/* Earnings */}
-        <div className="flex justify-between items-center">
-          <span className="text-sm text-gray-600">
-            {compensationType === 'PERCENTAGE' ? `Earnings: ${revenueSharePercent}% of Revenue` : 'Earnings Fixed Salary'}
-          </span>
-          <span className="text-sm font-medium text-red-600">
-            -${calculatedCreatorEarnings.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-          </span>
         </div>
 
         {/* Net Revenue */}

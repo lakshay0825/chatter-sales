@@ -48,9 +48,21 @@ export async function createUser(input: CreateUserInput) {
   // Send invitation email
   try {
     await sendInvitationEmail(user.email, user.name, user.invitationToken!);
-  } catch (error) {
+    console.log(`[createUser] Invitation email sent successfully to ${user.email}`);
+  } catch (error: any) {
     // Log error but don't fail user creation
-    console.error('Failed to send invitation email:', error);
+    console.error(`[createUser] Failed to send invitation email to ${user.email}:`, error);
+    console.error('[createUser] Email error details:', {
+      message: error?.message,
+      stack: error?.stack,
+      emailConfig: {
+        host: process.env.EMAIL_HOST,
+        port: process.env.EMAIL_PORT,
+        user: process.env.EMAIL_USER,
+        from: process.env.EMAIL_FROM,
+        frontendUrl: process.env.FRONTEND_URL || process.env.APP_URL,
+      },
+    });
   }
 
   return user;

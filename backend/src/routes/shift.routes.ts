@@ -6,6 +6,7 @@ import {
   updateShiftHandler,
   deleteShiftHandler,
   autoGenerateShiftsHandler,
+  clearShiftsInRangeHandler,
 } from '../controllers/shift.controller';
 import { createShiftSchema, updateShiftSchema, getShiftsQuerySchema, autoGenerateShiftsSchema } from '../validations/shift.schema';
 import { validate } from '../middleware/validate';
@@ -77,6 +78,20 @@ export async function shiftRoutes(fastify: FastifyInstance) {
       },
     },
     deleteShiftHandler as any
+  );
+
+  // Clear shifts in a date range (Manager/Admin)
+  fastify.post(
+    '/clear-range',
+    {
+      preHandler: [authenticate, requireManager],
+      schema: {
+        description: 'Delete all shifts in a date range (Manager/Admin only)',
+        tags: ['shifts'],
+        security: [{ bearerAuth: [] }],
+      },
+    },
+    clearShiftsInRangeHandler as any
   );
 
   // Auto-generate weekly shifts (Admin only)

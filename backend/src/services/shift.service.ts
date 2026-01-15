@@ -1,5 +1,5 @@
 import { prisma } from '../config/database';
-import { NotFoundError } from '../utils/errors';
+import { NotFoundError, ConflictError } from '../utils/errors';
 import { CreateShiftInput, UpdateShiftInput, GetShiftsQuery } from '../validations/shift.schema';
 
 /**
@@ -19,22 +19,27 @@ export async function createShift(
   }
 
   // Ensure date is a Date object (handle string dates from frontend)
-  // If date is a string like "2025-12-30", convert it to a Date at midnight
+  // If date is a string like "2025-12-30", convert it to a Date at midnight UTC
   let shiftDate: Date;
   const dateInput = input.date as Date | string | number;
   if (dateInput instanceof Date) {
     shiftDate = dateInput;
   } else if (typeof dateInput === 'string') {
-    // Handle date strings - if it's just a date (YYYY-MM-DD), add time
-    const dateStr = dateInput.includes('T') ? dateInput : `${dateInput}T00:00:00`;
-    shiftDate = new Date(dateStr);
+    // Handle date strings - if it's just a date (YYYY-MM-DD), normalize to UTC midnight
+    if (dateInput.includes('T')) {
+      shiftDate = new Date(dateInput);
+    } else {
+      // Parse YYYY-MM-DD and create date at UTC midnight to avoid timezone issues
+      const [year, month, day] = dateInput.split('-').map(Number);
+      shiftDate = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
+    }
   } else {
     shiftDate = new Date(dateInput);
   }
   
   // Validate the date
   if (isNaN(shiftDate.getTime())) {
-    throw new Error('Invalid date format');
+    throw new Error(`Invalid date format: ${input.date}`);
   }
   
   console.log(`[createShift] Input date: ${input.date}, Converted date: ${shiftDate.toISOString()}`);
@@ -49,7 +54,7 @@ export async function createShift(
   });
 
   if (existingShift) {
-    throw new Error('Shift already exists for this user, date, and time');
+    throw new ConflictError('Shift already exists for this user, date, and time');
   }
 
   const shift = await prisma.shift.create({
@@ -135,6 +140,30 @@ export async function getShifts(query: GetShiftsQuery) {
   });
 
   return shifts;
+}
+
+/**
+ * Delete all shifts in a given date range.
+ * Used to clear an entire week of shifts from the calendar.
+ */
+export async function deleteShiftsInRange(startDate: Date | string, endDate: Date | string) {
+  const start = startDate instanceof Date ? startDate : new Date(startDate);
+  const end = endDate instanceof Date ? endDate : new Date(endDate);
+
+  if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+    throw new Error('Invalid date range for deleting shifts');
+  }
+
+  const result = await prisma.shift.deleteMany({
+    where: {
+      date: {
+        gte: start,
+        lte: end,
+      },
+    },
+  });
+
+  return result.count;
 }
 
 /**

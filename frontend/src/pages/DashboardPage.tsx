@@ -6,6 +6,7 @@ import { dashboardService, ChatterDashboardData } from '../services/dashboard.se
 import { getCurrentMonthYear, getMonthName, formatItalianDate } from '../utils/date';
 import { parseISO } from 'date-fns';
 import toast from 'react-hot-toast';
+import { getUserFriendlyError } from '../utils/errorHandler';
 
 export default function DashboardPage() {
   const { user } = useAuthStore();
@@ -34,7 +35,7 @@ export default function DashboardPage() {
       console.log('Sales chart data points:', data.salesChartData?.length || 0);
     } catch (error: any) {
       console.error('Dashboard error:', error);
-      toast.error(error.response?.data?.error || 'Failed to load dashboard data');
+      toast.error(getUserFriendlyError(error, { action: 'load', entity: 'dashboard data' }));
       setDashboardData(null);
     } finally {
       setIsLoading(false);

@@ -11,6 +11,7 @@ import { analyticsService } from '../services/analytics.service';
 import { getCurrentMonthYear, getMonthName } from '../utils/date';
 import { useAuthStore } from '../store/authStore';
 import toast from 'react-hot-toast';
+import { getUserFriendlyError } from '../utils/errorHandler';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 export default function AnalyticsPage() {
@@ -50,7 +51,7 @@ export default function AnalyticsPage() {
       setLeaderboard(leaderboardData);
     } catch (error: any) {
       console.error('Failed to load analytics:', error);
-      toast.error('Failed to load analytics data');
+      toast.error(getUserFriendlyError(error, { action: 'load', entity: 'analytics data' }));
     } finally {
       setIsLoading(false);
     }

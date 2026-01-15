@@ -3,6 +3,7 @@ import { Upload, Play, Search, Clock, Edit2, Trash2 } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { useAuthStore } from '../store/authStore';
 import toast from 'react-hot-toast';
+import { getUserFriendlyError } from '../utils/errorHandler';
 import { openConfirm } from '../components/ConfirmDialog';
 import { useLoadingStore } from '../store/loadingStore';
 import { lessonService, Lesson } from '../services/lesson.service';
@@ -35,35 +36,17 @@ export default function ELearningPage() {
       });
       setLessons(data);
     } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Failed to load lessons');
+      toast.error(getUserFriendlyError(error, { action: 'load', entity: 'lessons' }));
     } finally {
       setIsLoading(false);
     }
   };
 
-  const categories = ['All Categories', 'BEGINNER', 'SALES', 'CUSTOMER SERVICE', 'SAFETY', 'ADVANCED', 'PRODUCTIVITY'];
-
-  const filteredLessons = lessons.filter((lesson) => {
-    const matchesSearch = lesson.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         (lesson.description?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false);
-    const matchesCategory = selectedCategory === 'All Categories' || lesson.category === selectedCategory;
-    return matchesSearch && matchesCategory;
-  });
-
-  const sortedLessons = [...filteredLessons].sort((a, b) => {
-    if (sortBy === 'newest') {
-      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-    }
-    if (sortBy === 'mostViewed') {
-      return b.views - a.views;
-    }
-    if (sortBy === 'category') {
-      const byCategory = a.category.localeCompare(b.category);
-      if (byCategory !== 0) return byCategory;
-      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-    }
-    return 0;
-  });
+  // Get unique categories from lessons (dynamically from data)
+  const availableCategories = ['All Categories', ...Array.from(new Set(lessons.map(l => l.category))).sort()];
+  
+  // Use lessons directly from backend (already filtered and sorted)
+  const displayedLessons = lessons;
 
   const handleDeleteLesson = async (lessonId: string) => {
     const confirmed = await openConfirm({
@@ -78,11 +61,11 @@ export default function ELearningPage() {
 
     startLoading('Deleting lesson...');
     try {
-      // TODO: Call backend delete API when available
+      await lessonService.deleteLesson(lessonId);
       setLessons((prev) => prev.filter((l) => l.id !== lessonId));
       toast.success('Lesson deleted');
-    } catch (error) {
-      toast.error('Failed to delete lesson');
+    } catch (error: any) {
+      toast.error(getUserFriendlyError(error, { action: 'delete', entity: 'lesson' }));
     } finally {
       stopLoading();
     }
@@ -128,7 +111,7 @@ export default function ELearningPage() {
             onChange={(e) => setSelectedCategory(e.target.value)}
             className="input w-auto"
           >
-            {categories.map((cat) => (
+            {availableCategories.map((cat) => (
               <option key={cat} value={cat}>
                 {cat}
               </option>
@@ -178,7 +161,12 @@ export default function ELearningPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {sortedLessons.map((lesson) => (
+          {displayedLessons.length === 0 ? (
+            <div className="col-span-full text-center py-12">
+              <p className="text-gray-500">No lessons found. {isAdmin && 'Try uploading a new lesson!'}</p>
+            </div>
+          ) : (
+            displayedLessons.map((lesson) => (
             <div key={lesson.id} className="card p-0 overflow-hidden hover:shadow-lg transition-shadow">
               {/* Thumbnail */}
               <div className="relative aspect-video bg-gray-200">
@@ -265,15 +253,16 @@ export default function ELearningPage() {
                 )}
               </div>
             </div>
-          ))}
+            ))
+          )}
         </div>
       )}
 
       {/* Pagination */}
-      {sortedLessons.length > 0 && (
+      {displayedLessons.length > 0 && (
         <div className="flex items-center justify-between">
           <div className="text-sm text-gray-700">
-            Showing 1 to {sortedLessons.length} of {sortedLessons.length} entries
+            Showing 1 to {displayedLessons.length} of {displayedLessons.length} entries
           </div>
           <div className="flex items-center gap-2">
             <button className="btn btn-secondary">Previous</button>
@@ -374,7 +363,9 @@ function UploadLessonModal({
 }) {
   const [isUploading, setIsUploading] = useState(false);
   const [detectedDuration, setDetectedDuration] = useState<number | null>(lesson?.duration ?? null);
-  const { register, handleSubmit, formState: { errors }, reset } = useForm<{
+  const [videoPreview, setVideoPreview] = useState<string | null>(lesson?.videoUrl || null);
+  const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(lesson?.thumbnailUrl || null);
+  const { register, handleSubmit, formState: { errors }, reset, watch } = useForm<{
     title: string;
     description: string;
     category: string;
@@ -389,6 +380,44 @@ function UploadLessonModal({
       notes: lesson?.notes || '',
     },
   });
+
+  const videoFile = watch('video');
+  const thumbnailFile = watch('thumbnail');
+
+  // Update previews when lesson changes
+  useEffect(() => {
+    if (lesson) {
+      setVideoPreview(lesson.videoUrl || null);
+      setThumbnailPreview(lesson.thumbnailUrl || null);
+      setDetectedDuration(lesson.duration || null);
+    } else {
+      setVideoPreview(null);
+      setThumbnailPreview(null);
+      setDetectedDuration(null);
+    }
+  }, [lesson]);
+
+  // Update video preview when new file is selected
+  useEffect(() => {
+    if (videoFile && videoFile[0]) {
+      const objectUrl = URL.createObjectURL(videoFile[0]);
+      setVideoPreview(objectUrl);
+      return () => URL.revokeObjectURL(objectUrl);
+    } else if (lesson?.videoUrl) {
+      setVideoPreview(lesson.videoUrl);
+    }
+  }, [videoFile, lesson]);
+
+  // Update thumbnail preview when new file is selected
+  useEffect(() => {
+    if (thumbnailFile && thumbnailFile[0]) {
+      const objectUrl = URL.createObjectURL(thumbnailFile[0]);
+      setThumbnailPreview(objectUrl);
+      return () => URL.revokeObjectURL(objectUrl);
+    } else if (lesson?.thumbnailUrl) {
+      setThumbnailPreview(lesson.thumbnailUrl);
+    }
+  }, [thumbnailFile, lesson]);
 
   const handleVideoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -440,7 +469,10 @@ function UploadLessonModal({
       reset();
       onClose();
     } catch (error: any) {
-      toast.error('Failed to upload lesson');
+      toast.error(getUserFriendlyError(error, { 
+        action: lesson ? 'update' : 'upload', 
+        entity: 'lesson' 
+      }));
     } finally {
       setIsUploading(false);
     }
@@ -452,7 +484,9 @@ function UploadLessonModal({
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h2 className="text-2xl font-bold text-gray-900">Upload New Lesson</h2>
+          <h2 className="text-2xl font-bold text-gray-900">
+            {lesson ? 'Edit Lesson' : 'Upload New Lesson'}
+          </h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
             ×
           </button>
@@ -494,26 +528,63 @@ function UploadLessonModal({
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Video File (MP4)</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Video File (MP4) {lesson && <span className="text-gray-500 font-normal">(optional - leave empty to keep current)</span>}
+            </label>
+            {videoPreview && (
+              <div className="mb-3">
+                <p className="text-xs text-gray-600 mb-2">Current Video Preview:</p>
+                <video
+                  src={videoPreview}
+                  controls
+                  className="w-full max-h-48 rounded-lg bg-black"
+                  onLoadedMetadata={(e) => {
+                    const videoEl = e.currentTarget as HTMLVideoElement;
+                    const seconds = videoEl.duration;
+                    if (!Number.isNaN(seconds) && seconds > 0 && !videoFile?.[0]) {
+                      setDetectedDuration(Math.round(seconds));
+                    }
+                  }}
+                />
+              </div>
+            )}
             <input
               type="file"
               accept="video/mp4"
-                {...register('video', {
-                  required: lesson ? false : 'Video file is required',
-                  onChange: handleVideoChange,
-                })}
+              {...register('video', {
+                required: lesson ? false : 'Video file is required',
+                onChange: handleVideoChange,
+              })}
               className="input"
             />
+            {lesson && !videoFile?.[0] && (
+              <p className="mt-1 text-xs text-gray-500">Current video will be kept if no new file is selected</p>
+            )}
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Thumbnail Image</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Thumbnail Image {lesson && <span className="text-gray-500 font-normal">(optional - leave empty to keep current)</span>}
+            </label>
+            {thumbnailPreview && (
+              <div className="mb-3">
+                <p className="text-xs text-gray-600 mb-2">Current Thumbnail Preview:</p>
+                <img
+                  src={thumbnailPreview}
+                  alt="Thumbnail preview"
+                  className="w-full max-w-xs h-32 object-cover rounded-lg border border-gray-200"
+                />
+              </div>
+            )}
             <input
               type="file"
               accept="image/*"
               {...register('thumbnail')}
               className="input"
             />
+            {lesson && !thumbnailFile?.[0] && (
+              <p className="mt-1 text-xs text-gray-500">Current thumbnail will be kept if no new file is selected</p>
+            )}
           </div>
 
           <div>
@@ -530,7 +601,7 @@ function UploadLessonModal({
               Cancel
             </button>
             <button type="submit" className="btn btn-primary" disabled={isUploading}>
-              {isUploading ? 'Uploading...' : 'Upload Lesson'}
+              {isUploading ? (lesson ? 'Updating...' : 'Uploading...') : (lesson ? 'Update Lesson' : 'Upload Lesson')}
             </button>
           </div>
         </form>

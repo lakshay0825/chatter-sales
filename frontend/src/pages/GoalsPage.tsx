@@ -5,6 +5,7 @@ import { useAuthStore } from '../store/authStore';
 import { isAdmin } from '../utils/permissions';
 import { openConfirm } from '../components/ConfirmDialog';
 import toast from 'react-hot-toast';
+import { getUserFriendlyError } from '../utils/errorHandler';
 import GoalModal from '../components/GoalModal';
 import GoalProgressCard from '../components/GoalProgressCard';
 
@@ -87,7 +88,7 @@ export default function GoalsPage() {
       loadGoals();
     } catch (error: any) {
       console.error('Failed to delete goal:', error);
-      toast.error(error.response?.data?.error || 'Failed to delete goal');
+      toast.error(getUserFriendlyError(error, { action: 'delete', entity: 'goal' }));
     }
   };
 

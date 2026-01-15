@@ -5,6 +5,7 @@ import { userService } from '../services/user.service';
 import { creatorService } from '../services/creator.service';
 import { User, Creator } from '../types';
 import toast from 'react-hot-toast';
+import { getUserFriendlyError } from '../utils/errorHandler';
 
 interface GoalModalProps {
   isOpen: boolean;
@@ -122,7 +123,10 @@ export default function GoalModal({
       onClose();
     } catch (error: any) {
       console.error('Failed to save goal:', error);
-      toast.error(error.response?.data?.error || 'Failed to save goal');
+      toast.error(getUserFriendlyError(error, { 
+        action: goal ? 'update' : 'create', 
+        entity: 'goal' 
+      }));
     } finally {
       setIsLoading(false);
     }
@@ -131,21 +135,22 @@ export default function GoalModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h2 className="text-2xl font-bold text-gray-900">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
+      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
+        <div className="flex items-start sm:items-center justify-between p-4 sm:p-6 border-b border-gray-200">
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 flex-1 pr-2">
             {goal ? 'Edit Goal' : 'Create New Goal'}
           </h2>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            className="text-gray-400 hover:text-gray-600 transition-colors flex-shrink-0 p-1"
+            aria-label="Close"
           >
-            <X className="w-6 h-6" />
+            <X className="w-5 h-5 sm:w-6 sm:h-6" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+        <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4 sm:space-y-6">
           {/* Goal Type */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -291,16 +296,16 @@ export default function GoalModal({
           </div>
 
           {/* Actions */}
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-200">
+          <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 sm:gap-3 pt-4 border-t border-gray-200">
             <button
               type="button"
               onClick={onClose}
-              className="btn btn-secondary"
+              className="btn btn-secondary w-full sm:w-auto"
               disabled={isLoading}
             >
               Cancel
             </button>
-            <button type="submit" className="btn btn-primary" disabled={isLoading}>
+            <button type="submit" className="btn btn-primary w-full sm:w-auto" disabled={isLoading}>
               {isLoading ? 'Saving...' : goal ? 'Update Goal' : 'Create Goal'}
             </button>
           </div>

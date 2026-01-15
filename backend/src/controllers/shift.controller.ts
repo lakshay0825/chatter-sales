@@ -9,6 +9,7 @@ import {
   getDefaultWeeklyTemplate,
   extractTemplateFromWeek,
   generateShiftsForYear,
+  deleteShiftsInRange,
 } from '../services/shift.service';
 import { CreateShiftInput, UpdateShiftInput, GetShiftsQuery, AutoGenerateShiftsInput } from '../validations/shift.schema';
 import { ApiResponse } from '../types';
@@ -87,6 +88,25 @@ export async function deleteShiftHandler(
   const response: ApiResponse = {
     success: true,
     message: 'Shift deleted successfully',
+  };
+
+  return reply.code(200).send(response);
+}
+
+export async function clearShiftsInRangeHandler(
+  request: FastifyRequest<{ Body: { startDate: string; endDate: string } }>,
+  reply: FastifyReply
+) {
+  if (!request.user) {
+    return reply.code(401).send({ success: false, error: 'Unauthorized' });
+  }
+
+  const { startDate, endDate } = request.body;
+  const deletedCount = await deleteShiftsInRange(startDate, endDate);
+
+  const response: ApiResponse = {
+    success: true,
+    message: `Deleted ${deletedCount} shifts in range`,
   };
 
   return reply.code(200).send(response);

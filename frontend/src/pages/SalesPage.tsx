@@ -6,6 +6,7 @@ import { creatorService } from '../services/creator.service';
 import { exportService } from '../services/export.service';
 import { formatItalianDateTime } from '../utils/date';
 import toast from 'react-hot-toast';
+import { getUserFriendlyError } from '../utils/errorHandler';
 import SaleEntryModal from '../components/SaleEntryModal';
 import EditSaleModal from '../components/EditSaleModal';
 import DateRangePicker from '../components/DateRangePicker';
@@ -69,7 +70,7 @@ export default function SalesPage() {
       });
     } catch (error: any) {
       console.error('Failed to load sales:', error);
-      toast.error(error.response?.data?.error || 'Failed to load sales');
+      toast.error(getUserFriendlyError(error, { action: 'load', entity: 'sales' }));
     } finally {
       setIsLoading(false);
     }
@@ -88,7 +89,11 @@ export default function SalesPage() {
       document.body.removeChild(a);
       toast.success('Sales exported to CSV successfully');
     } catch (error: any) {
-      toast.error('Failed to export sales to CSV');
+      toast.error(getUserFriendlyError(error, { 
+        action: 'export', 
+        entity: 'sales to CSV',
+        defaultMessage: 'Failed to export sales. Please try again or contact support if the problem persists.'
+      }));
     }
   };
 
@@ -105,7 +110,11 @@ export default function SalesPage() {
       document.body.removeChild(a);
       toast.success('Sales exported to Excel successfully');
     } catch (error: any) {
-      toast.error('Failed to export sales to Excel');
+      toast.error(getUserFriendlyError(error, { 
+        action: 'export', 
+        entity: 'sales to Excel',
+        defaultMessage: 'Failed to export sales. Please try again or contact support if the problem persists.'
+      }));
     }
   };
 
@@ -122,7 +131,11 @@ export default function SalesPage() {
       document.body.removeChild(a);
       toast.success('Sales exported to PDF successfully');
     } catch (error: any) {
-      toast.error('Failed to export sales to PDF');
+      toast.error(getUserFriendlyError(error, { 
+        action: 'export', 
+        entity: 'sales to PDF',
+        defaultMessage: 'Failed to export sales. Please try again or contact support if the problem persists.'
+      }));
     }
   };
 
@@ -292,7 +305,7 @@ export default function SalesPage() {
       </div>
 
       {/* Sales Table */}
-      <div className="card p-0 overflow-hidden">
+      <div className="card p-0 overflow-hidden overflow-x-auto">
         {isLoading ? (
           <div className="flex items-center justify-center h-64">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>

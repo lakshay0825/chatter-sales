@@ -6,9 +6,10 @@ import { userService } from '../services/user.service';
 import { useAuthStore } from '../store/authStore';
 import { useLoadingStore } from '../store/loadingStore';
 import { openConfirm } from '../components/ConfirmDialog';
-import { format, startOfWeek, addDays, addWeeks, subWeeks, isSameDay } from 'date-fns';
+import { format, startOfWeek, addDays, addWeeks, subWeeks, endOfDay } from 'date-fns';
 import it from 'date-fns/locale/it';
 import toast from 'react-hot-toast';
+import { getUserFriendlyError } from '../utils/errorHandler';
 
 const SHIFT_TIMES = {
   MORNING: { start: '09:00', end: '14:30', label: 'Mattina', color: 'bg-yellow-100 border-yellow-300' },
@@ -47,7 +48,7 @@ export default function ShiftsPage() {
       }
     } catch (error: any) {
       console.error('ShiftsPage: Failed to load users:', error);
-      toast.error(error.response?.data?.error || 'Failed to load users');
+      toast.error(getUserFriendlyError(error, { action: 'load', entity: 'users' }));
     }
   };
 
@@ -55,7 +56,7 @@ export default function ShiftsPage() {
     setIsLoading(true);
     try {
       const weekStart = startOfWeek(currentWeek, { weekStartsOn: 1 }); // Monday
-      const weekEnd = addDays(weekStart, 6);
+      const weekEnd = endOfDay(addDays(weekStart, 6)); // Sunday end of day (23:59:59.999)
       
       const data = await shiftService.getShifts({
         startDate: weekStart.toISOString(),
@@ -71,13 +72,14 @@ export default function ShiftsPage() {
       
       setLocalShifts(shiftsMap);
     } catch (error: any) {
-      toast.error('Failed to load shifts');
+      toast.error(getUserFriendlyError(error, { action: 'load', entity: 'shifts' }));
     } finally {
       setIsLoading(false);
     }
   };
 
   const weekStart = startOfWeek(currentWeek, { weekStartsOn: 1 });
+  // Ensure we always have 7 days: Monday (0) through Sunday (6)
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 
   const getShiftKey = (date: Date, startTime: string, userId: string) => {
@@ -86,10 +88,16 @@ export default function ShiftsPage() {
 
   const getShiftForDay = (date: Date, shiftKey: ShiftTimeKey) => {
     const shiftTime = SHIFT_TIMES[shiftKey];
+    // Normalize date to YYYY-MM-DD string for comparison (avoid timezone issues)
+    const targetDateStr = format(date, 'yyyy-MM-dd');
+    
     // Only return a single shift per time slot (Morning/Afternoon/Evening)
     const slotShift = Array.from(localShifts.values()).find(
-      (shift) =>
-        isSameDay(new Date(shift.date), date) && shift.startTime === shiftTime.start
+      (shift) => {
+        const shiftDate = new Date(shift.date);
+        const shiftDateStr = format(shiftDate, 'yyyy-MM-dd');
+        return shiftDateStr === targetDateStr && shift.startTime === shiftTime.start;
+      }
     );
     return slotShift ? [slotShift] : [];
   };
@@ -114,9 +122,13 @@ export default function ShiftsPage() {
     const dateStr = format(targetDate, 'yyyy-MM-dd');
 
     // New rule: a user can only have ONE shift per day (morning OR afternoon OR evening)
+    const targetDateStr = format(targetDate, 'yyyy-MM-dd');
     const existingUserShiftSameDay = Array.from(localShifts.values()).find(
-      (shift) =>
-        shift.userId === userId && isSameDay(new Date(shift.date), targetDate)
+      (shift) => {
+        const shiftDate = new Date(shift.date);
+        const shiftDateStr = format(shiftDate, 'yyyy-MM-dd');
+        return shift.userId === userId && shiftDateStr === targetDateStr;
+      }
     );
 
     if (existingUserShiftSameDay) {
@@ -126,9 +138,11 @@ export default function ShiftsPage() {
 
     // Check if a shift already exists in this time slot (for any user)
     const existingSlotShift = Array.from(localShifts.values()).find(
-      (shift) =>
-        isSameDay(new Date(shift.date), targetDate) &&
-        shift.startTime === shiftTime.start
+      (shift) => {
+        const shiftDate = new Date(shift.date);
+        const shiftDateStr = format(shiftDate, 'yyyy-MM-dd');
+        return shiftDateStr === targetDateStr && shift.startTime === shiftTime.start;
+      }
     );
 
     startLoading('Saving shift...');
@@ -156,7 +170,7 @@ export default function ShiftsPage() {
       await loadShifts();
     } catch (error: any) {
       console.error('Failed to save shift:', error);
-      toast.error(error.response?.data?.error || 'Failed to save shift');
+      toast.error(getUserFriendlyError(error, { action: 'save', entity: 'shift' }));
     } finally {
       stopLoading();
     }
@@ -182,7 +196,7 @@ export default function ShiftsPage() {
       toast.success('Shift removed');
       await loadShifts();
     } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Failed to remove shift');
+      toast.error(getUserFriendlyError(error, { action: 'remove', entity: 'shift' }));
     } finally {
       stopLoading();
     }
@@ -190,39 +204,30 @@ export default function ShiftsPage() {
 
   const handleReset = async () => {
     const weekStart = startOfWeek(currentWeek, { weekStartsOn: 1 });
-    const weekEnd = addDays(weekStart, 6);
-    
-    // Get all shifts for current week
-    const currentWeekShifts = Array.from(localShifts.values()).filter((shift) => {
-      const shiftDate = new Date(shift.date);
-      return shiftDate >= weekStart && shiftDate <= weekEnd;
-    });
-    
-    if (currentWeekShifts.length === 0) {
-      toast('No shifts to clear for this week', { icon: 'ℹ️' });
-      return;
-    }
+    const weekEnd = endOfDay(addDays(weekStart, 6)); // Sunday end of day
 
     const confirmed = await openConfirm({
       title: 'Clear week shifts',
-      message: `Are you sure you want to delete all ${currentWeekShifts.length} shifts for this week? This action cannot be undone.`,
+      message: `Are you sure you want to delete all shifts for this week? This action cannot be undone.`,
       confirmLabel: 'Delete all',
       cancelLabel: 'Cancel',
       variant: 'danger',
     });
     if (!confirmed) return;
     
-    startLoading('Clearing this week\'s shifts...');
+    startLoading("Clearing this week's shifts...");
     try {
-      // Delete all shifts for the current week
-      const deletePromises = currentWeekShifts.map(shift => shiftService.deleteShift(shift.id));
-      await Promise.all(deletePromises);
-      
-      toast.success(`Successfully deleted ${currentWeekShifts.length} shifts for this week`);
+      // Ask backend to delete all shifts for the current week by date range
+      await shiftService.clearShiftsRange({
+        startDate: weekStart.toISOString(),
+        endDate: weekEnd.toISOString(),
+      });
+
+      toast.success('Successfully deleted all shifts for this week');
       await loadShifts();
     } catch (error: any) {
       console.error('Failed to clear shifts:', error);
-      toast.error(error.response?.data?.error || 'Failed to clear shifts');
+      toast.error(getUserFriendlyError(error, { action: 'clear', entity: 'shifts' }));
     } finally {
       stopLoading();
     }
@@ -230,11 +235,15 @@ export default function ShiftsPage() {
 
   const handleAutoGenerate = async () => {
     const weekStart = startOfWeek(currentWeek, { weekStartsOn: 1 });
+    const weekEnd = endOfDay(addDays(weekStart, 6)); // Sunday end of day
     
     // Check if current week has any shifts
+    const weekStartStr = format(weekStart, 'yyyy-MM-dd');
+    const weekEndStr = format(weekEnd, 'yyyy-MM-dd');
     const currentWeekShifts = Array.from(localShifts.values()).filter((shift) => {
       const shiftDate = new Date(shift.date);
-      return shiftDate >= weekStart && shiftDate < addDays(weekStart, 7);
+      const shiftDateStr = format(shiftDate, 'yyyy-MM-dd');
+      return shiftDateStr >= weekStartStr && shiftDateStr <= weekEndStr;
     });
     
     if (currentWeekShifts.length === 0) {
@@ -262,7 +271,11 @@ export default function ShiftsPage() {
       await loadShifts();
     } catch (error: any) {
       console.error('Failed to auto-generate shifts:', error);
-      toast.error(error.response?.data?.error || 'Failed to auto-generate shifts');
+      toast.error(getUserFriendlyError(error, { 
+        action: 'auto-generate', 
+        entity: 'shifts',
+        defaultMessage: 'Failed to generate shifts. Please ensure you have set up shifts for the current week first, then try again.'
+      }));
     } finally {
       setIsAutoGenerating(false);
       stopLoading();
@@ -431,9 +444,12 @@ export default function ShiftsPage() {
                   <td className="px-4 py-3 font-medium text-gray-700">Liberi</td>
                   {weekDays.map((day) => {
                     // Get users not assigned to this specific day
-                    const dayShifts = Array.from(localShifts.values()).filter((shift) =>
-                      isSameDay(new Date(shift.date), day)
-                    );
+                    const dayDateStr = format(day, 'yyyy-MM-dd');
+                    const dayShifts = Array.from(localShifts.values()).filter((shift) => {
+                      const shiftDate = new Date(shift.date);
+                      const shiftDateStr = format(shiftDate, 'yyyy-MM-dd');
+                      return shiftDateStr === dayDateStr;
+                    });
                     const assignedUserIds = new Set(dayShifts.map((shift) => shift.userId));
                     const availableUsers = users.filter((user) => !assignedUserIds.has(user.id));
                     

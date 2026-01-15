@@ -7,6 +7,7 @@ import { useAuthStore } from '../store/authStore';
 import { Creator } from '../types';
 import CreatorFinancialCard from '../components/CreatorFinancialCard';
 import toast from 'react-hot-toast';
+import { getUserFriendlyError } from '../utils/errorHandler';
 
 export default function AdminDashboardPage() {
   const { user } = useAuthStore();
@@ -42,7 +43,7 @@ export default function AdminDashboardPage() {
       );
       setDashboardData(data);
     } catch (error: any) {
-      toast.error('Failed to load admin dashboard');
+      toast.error(getUserFriendlyError(error, { action: 'load', entity: 'admin dashboard' }));
     } finally {
       setIsLoading(false);
     }
@@ -281,6 +282,7 @@ export default function AdminDashboardPage() {
                 revenueSharePercent={creatorFinancial.revenueSharePercent}
                 fixedSalaryCost={creatorFinancial.fixedSalaryCost}
                 grossRevenue={creatorFinancial.grossRevenue}
+                totalSalesAmount={creatorFinancial.totalSalesAmount}
                 creatorEarnings={creatorFinancial.creatorEarnings}
                 marketingCosts={creatorFinancial.marketingCosts}
                 toolCosts={creatorFinancial.toolCosts}

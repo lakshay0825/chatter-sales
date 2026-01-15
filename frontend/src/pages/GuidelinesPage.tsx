@@ -7,6 +7,7 @@ import { useAuthStore } from '../store/authStore';
 import { isAdmin } from '../utils/permissions';
 import { useLoadingStore } from '../store/loadingStore';
 import toast from 'react-hot-toast';
+import { getUserFriendlyError } from '../utils/errorHandler';
 import { formatItalianDate } from '../utils/date';
 
 // Define formats outside component to prevent recreation
@@ -54,7 +55,7 @@ export default function GuidelinesPage() {
       }
     } catch (error: any) {
       console.error('Failed to load guideline:', error);
-      toast.error('Failed to load guidelines');
+      toast.error(getUserFriendlyError(error, { action: 'load', entity: 'guidelines' }));
     } finally {
       setIsLoading(false);
     }
@@ -94,7 +95,7 @@ export default function GuidelinesPage() {
       } else if (error.response?.status === 403) {
         toast.error('You do not have permission to perform this action. Admin access required.');
       } else {
-        toast.error(error.response?.data?.error || error.message || 'Failed to save guidelines');
+        toast.error(getUserFriendlyError(error, { action: 'save', entity: 'guidelines' }));
       }
     } finally {
       setIsSaving(false);
@@ -148,7 +149,7 @@ export default function GuidelinesPage() {
         toast.success('Image uploaded successfully', { id: 'upload-image' });
       } catch (error: any) {
         console.error('Failed to upload image:', error);
-        toast.error(error.response?.data?.error || 'Failed to upload image', {
+        toast.error(getUserFriendlyError(error, { action: 'upload', entity: 'image' }), {
           id: 'upload-image',
         });
       }

@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { useAuthStore } from '../store/authStore';
 import { authService } from '../services/auth.service';
 import toast from 'react-hot-toast';
+import { getUserFriendlyError } from '../utils/errorHandler';
 import { useLoadingStore } from '../store/loadingStore';
 import type { User } from '../types';
 
@@ -70,7 +71,11 @@ export default function SettingsPage() {
       toast.success('Password changed successfully');
       reset();
     } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Failed to change password');
+      toast.error(getUserFriendlyError(error, { 
+        action: 'change', 
+        entity: 'password',
+        defaultMessage: 'Failed to change password. Please check your current password and try again.'
+      }));
     } finally {
       setIsChangingPassword(false);
     }
@@ -92,7 +97,7 @@ export default function SettingsPage() {
       setProfileUser(updatedUser);
       toast.success('Profile updated successfully');
     } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Failed to update profile');
+      toast.error(getUserFriendlyError(error, { action: 'update', entity: 'profile' }));
     } finally {
       setIsUpdatingProfile(false);
       stopLoading();

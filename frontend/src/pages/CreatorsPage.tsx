@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Plus, Edit, Trash2, MoreVertical, Upload } from 'lucide-react';
+import { Plus, Edit, Trash2, MoreVertical, Upload, X } from 'lucide-react';
 import { Creator, UserRole } from '../types';
 import { creatorService, CreateCreatorData } from '../services/creator.service';
 import { uploadService } from '../services/upload.service';
@@ -11,13 +11,30 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useAuthStore } from '../store/authStore';
 import { useLoadingStore } from '../store/loadingStore';
+import { getUserFriendlyError } from '../utils/errorHandler';
 
 const createCreatorSchema = z
   .object({
     name: z.string().min(1, 'Name is required'),
     compensationType: z.enum(['PERCENTAGE', 'SALARY']),
-    revenueSharePercent: z.number().min(0).max(100).optional(),
-    fixedSalaryCost: z.number().min(0).optional(),
+    revenueSharePercent: z.preprocess(
+      (val) => {
+        if (val === undefined || val === null || val === '' || isNaN(Number(val))) {
+          return undefined;
+        }
+        return Number(val);
+      },
+      z.number().min(0.01).max(100).optional()
+    ),
+    fixedSalaryCost: z.preprocess(
+      (val) => {
+        if (val === undefined || val === null || val === '' || isNaN(Number(val))) {
+          return undefined;
+        }
+        return Number(val);
+      },
+      z.number().min(0.01).optional()
+    ),
   })
   .refine(
     (data) => {
@@ -29,10 +46,16 @@ const createCreatorSchema = z
       }
       return true;
     },
-    {
-      message: 'Compensation value is required based on compensation type',
-      path: ['revenueSharePercent'],
-    }
+    (data) => ({
+      message:
+        data.compensationType === 'PERCENTAGE'
+          ? 'Please enter a revenue share percentage greater than 0.'
+          : 'Please enter a fixed salary amount greater than 0.',
+      path:
+        data.compensationType === 'PERCENTAGE'
+          ? ['revenueSharePercent']
+          : ['fixedSalaryCost'],
+    })
   );
 
 type CreateCreatorFormData = z.infer<typeof createCreatorSchema>;
@@ -63,14 +86,26 @@ export default function CreatorsPage() {
     formState: { errors },
     reset,
     watch,
+    setValue,
   } = useForm<CreateCreatorFormData>({
     resolver: zodResolver(createCreatorSchema),
     defaultValues: {
       compensationType: 'PERCENTAGE',
+      revenueSharePercent: undefined,
+      fixedSalaryCost: undefined,
     },
   });
 
   const compensationType = watch('compensationType');
+
+  // Clear compensation values when switching types
+  useEffect(() => {
+    if (compensationType === 'PERCENTAGE') {
+      setValue('fixedSalaryCost', undefined);
+    } else if (compensationType === 'SALARY') {
+      setValue('revenueSharePercent', undefined);
+    }
+  }, [compensationType, setValue]);
 
   useEffect(() => {
     if (isAdmin) {
@@ -97,7 +132,7 @@ export default function CreatorsPage() {
       const data = await creatorService.getCreators();
       setCreators(data);
     } catch (error: any) {
-      toast.error('Failed to load creators');
+      toast.error(getUserFriendlyError(error, { action: 'load', entity: 'creators' }));
     } finally {
       setIsLoading(false);
     }
@@ -106,13 +141,23 @@ export default function CreatorsPage() {
   const onSubmit = async (data: CreateCreatorFormData) => {
     startLoading(selectedCreator ? 'Updating creator...' : 'Creating creator...');
     try {
+      // Ensure numbers are properly converted and not NaN
+      const revenueSharePercent = data.compensationType === 'PERCENTAGE' 
+        ? (data.revenueSharePercent !== undefined && !isNaN(data.revenueSharePercent) ? data.revenueSharePercent : undefined)
+        : undefined;
+      
+      const fixedSalaryCost = data.compensationType === 'SALARY'
+        ? (data.fixedSalaryCost !== undefined && !isNaN(data.fixedSalaryCost) ? data.fixedSalaryCost : undefined)
+        : undefined;
+
       const creatorData: CreateCreatorData = {
-        name: data.name,
+        name: data.name.trim(),
         compensationType: data.compensationType,
-        revenueSharePercent:
-          data.compensationType === 'PERCENTAGE' ? data.revenueSharePercent : undefined,
-        fixedSalaryCost: data.compensationType === 'SALARY' ? data.fixedSalaryCost : undefined,
+        revenueSharePercent,
+        fixedSalaryCost,
       };
+
+      console.log('Creating creator with data:', creatorData);
 
       if (selectedCreator) {
         await creatorService.updateCreator(selectedCreator.id, creatorData);
@@ -127,7 +172,10 @@ export default function CreatorsPage() {
       setSelectedCreator(null);
       loadCreators();
     } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Failed to save creator');
+      toast.error(getUserFriendlyError(error, { 
+        action: selectedCreator ? 'update' : 'create', 
+        entity: 'creator' 
+      }));
     } finally {
       stopLoading();
     }
@@ -149,7 +197,11 @@ export default function CreatorsPage() {
       toast.success('Creator deleted successfully');
       loadCreators();
     } catch (error: any) {
-      toast.error('Failed to delete creator');
+      toast.error(getUserFriendlyError(error, { 
+        action: 'delete', 
+        entity: 'creator',
+        defaultMessage: 'Cannot delete creator. This creator may have associated sales. Please remove or reassign all sales first, then try again.'
+      }));
     } finally {
       stopLoading();
     }
@@ -187,7 +239,10 @@ export default function CreatorsPage() {
       toast.success('Identification photo uploaded successfully');
       loadCreators();
     } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Failed to upload identification photo');
+      toast.error(getUserFriendlyError(error, { 
+        action: 'upload', 
+        entity: 'identification photo' 
+      }));
     } finally {
       setUploadingPhoto(null);
       if (fileInputRef.current) {
@@ -208,8 +263,13 @@ export default function CreatorsPage() {
         <button
           onClick={() => {
             setSelectedCreator(null);
+            reset({
+              name: '',
+              compensationType: 'PERCENTAGE',
+              revenueSharePercent: undefined,
+              fixedSalaryCost: undefined,
+            });
             setIsModalOpen(true);
-            reset();
           }}
           className="btn btn-primary flex items-center gap-2"
         >
@@ -315,10 +375,10 @@ export default function CreatorsPage() {
 
       {/* Create/Edit Creator Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
-            <div className="flex items-center justify-between p-6 border-b border-gray-200">
-              <h2 className="text-2xl font-bold text-gray-900">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
+            <div className="flex items-start sm:items-center justify-between p-4 sm:p-6 border-b border-gray-200">
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900 flex-1 pr-2">
                 {selectedCreator ? 'Edit Creator' : 'Add Creator'}
               </h2>
               <button
@@ -327,13 +387,14 @@ export default function CreatorsPage() {
                   setSelectedCreator(null);
                   reset();
                 }}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-gray-400 hover:text-gray-600 transition-colors flex-shrink-0 p-1"
+                aria-label="Close"
               >
-                ×
+                <X className="w-5 h-5 sm:w-6 sm:h-6" />
               </button>
             </div>
 
-            <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-4">
+            <form onSubmit={handleSubmit(onSubmit)} className="p-4 sm:p-6 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Name</label>
                 <input type="text" {...register('name')} className="input" />
@@ -365,7 +426,22 @@ export default function CreatorsPage() {
                   <input
                     type="number"
                     step="0.1"
-                    {...register('revenueSharePercent', { valueAsNumber: true })}
+                    min="0.1"
+                    max="100"
+                    {...register('revenueSharePercent', { 
+                      valueAsNumber: true,
+                      validate: (value) => {
+                        if (compensationType === 'PERCENTAGE') {
+                          if (value === undefined || isNaN(value) || value <= 0) {
+                            return 'Please enter a revenue share percentage greater than 0';
+                          }
+                          if (value > 100) {
+                            return 'Revenue share percentage cannot exceed 100%';
+                          }
+                        }
+                        return true;
+                      }
+                    })}
                     className="input"
                     placeholder="0-100"
                   />
@@ -385,7 +461,18 @@ export default function CreatorsPage() {
                   <input
                     type="number"
                     step="0.01"
-                    {...register('fixedSalaryCost', { valueAsNumber: true })}
+                    min="0.01"
+                    {...register('fixedSalaryCost', { 
+                      valueAsNumber: true,
+                      validate: (value) => {
+                        if (compensationType === 'SALARY') {
+                          if (value === undefined || isNaN(value) || value <= 0) {
+                            return 'Please enter a fixed salary amount greater than 0';
+                          }
+                        }
+                        return true;
+                      }
+                    })}
                     className="input"
                     placeholder="0.00"
                   />
@@ -397,7 +484,7 @@ export default function CreatorsPage() {
                 </div>
               )}
 
-              <div className="flex items-center justify-end gap-4 pt-4 border-t border-gray-200">
+              <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 sm:gap-4 pt-4 border-t border-gray-200">
                 <button
                   type="button"
                   onClick={() => {
@@ -405,11 +492,11 @@ export default function CreatorsPage() {
                     setSelectedCreator(null);
                     reset();
                   }}
-                  className="btn btn-secondary"
+                  className="btn btn-secondary w-full sm:w-auto"
                 >
                   Cancel
                 </button>
-                <button type="submit" className="btn btn-primary">
+                <button type="submit" className="btn btn-primary w-full sm:w-auto">
                   {selectedCreator ? 'Update Creator' : 'Create Creator'}
                 </button>
               </div>

@@ -5,6 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useAuthStore } from '../store/authStore';
 import toast from 'react-hot-toast';
+import { getUserFriendlyError } from '../utils/errorHandler';
 import { LogIn } from 'lucide-react';
 
 const loginSchema = z.object({
@@ -37,7 +38,10 @@ export default function LoginPage() {
       const redirect = searchParams.get('redirect') || '/dashboard';
       navigate(redirect);
     } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Login failed');
+      toast.error(getUserFriendlyError(error, { 
+        action: 'login',
+        defaultMessage: 'Login failed. Please check your email and password and try again.'
+      }));
     } finally {
       setIsLoading(false);
     }

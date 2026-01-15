@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Plus, Edit, Trash2, Upload } from 'lucide-react';
+import { Plus, Edit, Trash2, Upload, X } from 'lucide-react';
 import { User, UserRole } from '../types';
 import { userService, CreateUserData } from '../services/user.service';
 import { uploadService } from '../services/upload.service';
@@ -8,6 +8,7 @@ import { openConfirm } from '../components/ConfirmDialog';
 import { useLoadingStore } from '../store/loadingStore';
 import { formatItalianDate } from '../utils/date';
 import toast from 'react-hot-toast';
+import { getUserFriendlyError } from '../utils/errorHandler';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -68,7 +69,7 @@ export default function UsersPage() {
       const data = await userService.getUsers(params);
       setUsers(data);
     } catch (error: any) {
-      toast.error('Failed to load users');
+      toast.error(getUserFriendlyError(error, { action: 'load', entity: 'users' }));
     } finally {
       setIsLoading(false);
     }
@@ -105,7 +106,10 @@ export default function UsersPage() {
       setSelectedUser(null);
       loadUsers();
     } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Failed to save user');
+      toast.error(getUserFriendlyError(error, { 
+        action: selectedUser ? 'update' : 'create', 
+        entity: 'user' 
+      }));
     } finally {
       stopLoading();
     }
@@ -127,7 +131,11 @@ export default function UsersPage() {
       toast.success('User deleted successfully');
       loadUsers();
     } catch (error: any) {
-      toast.error('Failed to delete user');
+      toast.error(getUserFriendlyError(error, { 
+        action: 'delete', 
+        entity: 'user',
+        defaultMessage: 'Cannot delete user. This user may have associated sales or shifts. Please remove or reassign them first, then try again.'
+      }));
     } finally {
       stopLoading();
     }
@@ -165,7 +173,10 @@ export default function UsersPage() {
       toast.success('Identification photo uploaded successfully');
       loadUsers();
     } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Failed to upload identification photo');
+      toast.error(getUserFriendlyError(error, { 
+        action: 'upload', 
+        entity: 'identification photo' 
+      }));
     } finally {
       setUploadingPhoto(null);
       if (fileInputRef.current) {
@@ -242,7 +253,7 @@ export default function UsersPage() {
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto -mx-4 sm:mx-0">
             <table className="w-full">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
@@ -357,10 +368,10 @@ export default function UsersPage() {
 
       {/* Create/Edit User Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
-            <div className="flex items-center justify-between p-6 border-b border-gray-200">
-              <h2 className="text-2xl font-bold text-gray-900">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
+            <div className="flex items-start sm:items-center justify-between p-4 sm:p-6 border-b border-gray-200">
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900 flex-1 pr-2">
                 {selectedUser ? 'Edit User' : 'Invite New User'}
               </h2>
               <button
@@ -369,13 +380,14 @@ export default function UsersPage() {
                   setSelectedUser(null);
                   reset();
                 }}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-gray-400 hover:text-gray-600 transition-colors flex-shrink-0 p-1"
+                aria-label="Close"
               >
-                ×
+                <X className="w-5 h-5 sm:w-6 sm:h-6" />
               </button>
             </div>
 
-            <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-4">
+            <form onSubmit={handleSubmit(onSubmit)} className="p-4 sm:p-6 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
                 <input
@@ -443,7 +455,7 @@ export default function UsersPage() {
                 )}
               </div>
 
-              <div className="flex items-center justify-end gap-4 pt-4 border-t border-gray-200">
+              <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 sm:gap-4 pt-4 border-t border-gray-200">
                 <button
                   type="button"
                   onClick={() => {
@@ -451,11 +463,11 @@ export default function UsersPage() {
                     setSelectedUser(null);
                     reset();
                   }}
-                  className="btn btn-secondary"
+                  className="btn btn-secondary w-full sm:w-auto"
                 >
                   Cancel
                 </button>
-                <button type="submit" className="btn btn-primary">
+                <button type="submit" className="btn btn-primary w-full sm:w-auto">
                   {selectedUser ? 'Update User' : 'Send Invitation'}
                 </button>
               </div>

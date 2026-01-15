@@ -7,6 +7,7 @@ import { SaleType, Creator } from '../types';
 import { saleService, CreateSaleData } from '../services/sale.service';
 import { creatorService } from '../services/creator.service';
 import toast from 'react-hot-toast';
+import { getUserFriendlyError } from '../utils/errorHandler';
 import { getCurrentTimeString, getCurrentTimezoneAbbr } from '../utils/date';
 
 const saleSchema = z.object({
@@ -86,7 +87,7 @@ export default function SaleEntryModal({ isOpen, onClose, onSuccess }: SaleEntry
       }
     } catch (error: any) {
       console.error('Failed to load creators:', error);
-      toast.error(error.response?.data?.error || 'Failed to load creators');
+      toast.error(getUserFriendlyError(error, { action: 'load', entity: 'creators' }));
     }
   };
 
@@ -113,7 +114,7 @@ export default function SaleEntryModal({ isOpen, onClose, onSuccess }: SaleEntry
       onSuccess();
       onClose();
     } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Failed to create sale');
+      toast.error(getUserFriendlyError(error, { action: 'create', entity: 'sale' }));
     } finally {
       setIsLoading(false);
     }
@@ -122,45 +123,46 @@ export default function SaleEntryModal({ isOpen, onClose, onSuccess }: SaleEntry
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
+      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900">Enter Sale</h2>
-            <p className="text-sm text-gray-600 mt-1">
+        <div className="flex items-start sm:items-center justify-between p-4 sm:p-6 border-b border-gray-200">
+          <div className="flex-1 pr-2">
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Enter Sale</h2>
+            <p className="text-xs sm:text-sm text-gray-600 mt-1">
               Insert a new sale for your current working shift
             </p>
           </div>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            className="text-gray-400 hover:text-gray-600 transition-colors flex-shrink-0 p-1"
+            aria-label="Close"
           >
-            <X className="w-6 h-6" />
+            <X className="w-5 h-5 sm:w-6 sm:h-6" />
           </button>
         </div>
 
         {/* Date/Time Display */}
-        <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-600">Today,</span>
-              <span className="text-sm font-medium text-gray-700">{currentTime}</span>
-              <span className="text-sm text-gray-600">- Italy ({timezoneAbbr})</span>
+        <div className="px-4 sm:px-6 py-3 sm:py-4 bg-gray-50 border-b border-gray-200">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center gap-1 sm:gap-2">
+              <span className="text-xs sm:text-sm text-gray-600">Today,</span>
+              <span className="text-xs sm:text-sm font-medium text-gray-700">{currentTime}</span>
+              <span className="text-xs sm:text-sm text-gray-600">- Italy ({timezoneAbbr})</span>
             </div>
             <button
               type="button"
               onClick={() => setIsBackdating(!isBackdating)}
-              className="text-primary-600 hover:text-primary-700 text-sm font-medium flex items-center gap-1"
+              className="text-primary-600 hover:text-primary-700 text-xs sm:text-sm font-medium flex items-center gap-1"
             >
-              <ExternalLink className="w-4 h-4" />
+              <ExternalLink className="w-3 h-3 sm:w-4 sm:h-4" />
               Backdate Sale
             </button>
           </div>
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-6">
+        <form onSubmit={handleSubmit(onSubmit)} className="p-4 sm:p-6 space-y-4 sm:space-y-6">
           {/* Creator Selection */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Creator</label>
@@ -266,16 +268,16 @@ export default function SaleEntryModal({ isOpen, onClose, onSuccess }: SaleEntry
           </div>
 
           {/* Actions */}
-          <div className="flex items-center justify-end gap-4 pt-4 border-t border-gray-200">
+          <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 sm:gap-4 pt-4 border-t border-gray-200">
             <button
               type="button"
               onClick={onClose}
-              className="btn btn-secondary"
+              className="btn btn-secondary w-full sm:w-auto"
               disabled={isLoading}
             >
               Cancel
             </button>
-            <button type="submit" className="btn btn-primary" disabled={isLoading}>
+            <button type="submit" className="btn btn-primary w-full sm:w-auto" disabled={isLoading}>
               {isLoading ? 'Adding...' : 'Add Sale'}
             </button>
           </div>
