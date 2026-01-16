@@ -6,7 +6,7 @@ import {
   updateUserHandler,
   deleteUserHandler,
 } from '../controllers/user.controller';
-import { uploadUserIdentificationPhotoHandler } from '../controllers/upload.controller';
+import { uploadUserIdentificationPhotoHandler, uploadUserAvatarHandler } from '../controllers/upload.controller';
 import { createUserSchema, updateUserSchema } from '../validations/user.schema';
 import { validate } from '../middleware/validate';
 import { authenticate, requireAdmin } from '../middleware/auth';
@@ -121,6 +121,26 @@ export async function userRoutes(fastify: FastifyInstance) {
       },
     },
     uploadUserIdentificationPhotoHandler as any
+  );
+
+  // Upload avatar/profile image (User can upload their own, Admin can upload for anyone)
+  fastify.post(
+    '/:id/avatar',
+    {
+      schema: {
+        description: 'Upload profile image for a user',
+        tags: ['users'],
+        security: [{ bearerAuth: [] }],
+        consumes: ['multipart/form-data'],
+        params: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+          },
+        },
+      },
+    },
+    uploadUserAvatarHandler as any
   );
 }
 

@@ -6,6 +6,7 @@ export const createSaleSchema = z.object({
   body: z.object({
     creatorId: z.string().cuid('Invalid creator ID'),
     amount: z.number().positive('Amount must be positive'),
+    baseAmount: z.number().min(0).optional(), // BASE amount - optional, defaults to 0
     saleType: z.nativeEnum(SaleType),
     note: z.string().optional(),
     saleDate: z.coerce.date().optional(), // Optional for backdating
@@ -22,6 +23,7 @@ export const updateSaleSchema = z.object({
   body: z.object({
     creatorId: z.string().cuid().optional(),
     amount: z.number().positive().optional(),
+    baseAmount: z.number().min(0).optional(), // BASE amount - optional
     saleType: z.nativeEnum(SaleType).optional(),
     note: z.string().optional(),
     saleDate: z.coerce.date().optional(),

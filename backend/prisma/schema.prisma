@@ -81,6 +81,7 @@ model Creator {
 model Sale {
   id        String     @id @default(cuid())
   amount    Float
+  baseAmount Float?    @default(0) // BASE amount - counts toward chatter earnings but not creator earnings
   saleType  SaleType
   status    SaleStatus @default(ONLINE)
   note      String?
@@ -130,6 +131,7 @@ model MonthlyFinancial {
   marketingCosts    Float    @default(0)
   toolCosts         Float    @default(0)
   otherCosts        Float    @default(0)
+  customCosts       Json?    // Array of { name: string, amount: number } for unlimited custom cost rows
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 

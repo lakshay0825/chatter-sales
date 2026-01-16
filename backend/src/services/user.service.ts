@@ -158,6 +158,7 @@ export async function updateUser(userId: string, input: UpdateUserInput) {
       ...(input.commissionPercent !== undefined && { commissionPercent: input.commissionPercent }),
       ...(input.fixedSalary !== undefined && { fixedSalary: input.fixedSalary }),
       ...(input.isActive !== undefined && { isActive: input.isActive }),
+      ...(input.avatar !== undefined && { avatar: input.avatar }),
       ...(input.identificationPhoto !== undefined && { identificationPhoto: input.identificationPhoto }),
     },
     select: {

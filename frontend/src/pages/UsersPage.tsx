@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Plus, Edit, Trash2, Upload, X } from 'lucide-react';
+import { Plus, Edit, Trash2, Upload, X, Eye } from 'lucide-react';
 import { User, UserRole } from '../types';
 import { userService, CreateUserData } from '../services/user.service';
 import { uploadService } from '../services/upload.service';
@@ -32,6 +32,7 @@ export default function UsersPage() {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [filterRole, setFilterRole] = useState<UserRole | ''>('');
   const [uploadingPhoto, setUploadingPhoto] = useState<string | null>(null);
+  const [viewingPhoto, setViewingPhoto] = useState<{ url: string; name: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isAdmin = user?.role === UserRole.ADMIN;
@@ -67,7 +68,14 @@ export default function UsersPage() {
     try {
       const params = filterRole ? { role: filterRole } : {};
       const data = await userService.getUsers(params);
-      setUsers(data);
+      // Filter out inactive chatters (but keep inactive managers/admins visible)
+      const filteredData = data.filter((u) => {
+        if (u.role === UserRole.CHATTER && !u.isActive) {
+          return false; // Hide inactive chatters
+        }
+        return true; // Show all others
+      });
+      setUsers(filteredData);
     } catch (error: any) {
       toast.error(getUserFriendlyError(error, { action: 'load', entity: 'users' }));
     } finally {
@@ -331,6 +339,15 @@ export default function UsersPage() {
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
+                        {u.identificationPhoto && (
+                          <button
+                            onClick={() => setViewingPhoto({ url: u.identificationPhoto!, name: u.name })}
+                            className="text-green-600 hover:text-green-700"
+                            title="View identification photo"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </button>
+                        )}
                         <button
                           onClick={() => handleFileSelect(u.id)}
                           disabled={uploadingPhoto === u.id}
@@ -486,6 +503,36 @@ export default function UsersPage() {
         className="hidden"
         onChange={handleFileUpload}
       />
+
+      {/* Photo Viewer Modal */}
+      {viewingPhoto && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4"
+          onClick={() => setViewingPhoto(null)}
+        >
+          <div className="relative max-w-4xl w-full max-h-[90vh] bg-white rounded-lg overflow-hidden">
+            <div className="flex items-center justify-between p-4 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900">
+                Identification Photo - {viewingPhoto.name}
+              </h3>
+              <button
+                onClick={() => setViewingPhoto(null)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            <div className="p-4 flex items-center justify-center bg-gray-50" style={{ minHeight: '400px' }}>
+              <img
+                src={viewingPhoto.url}
+                alt="Identification photo"
+                className="max-w-full max-h-[calc(90vh-120px)] object-contain rounded-lg shadow-lg"
+                onClick={(e) => e.stopPropagation()} // Prevent closing when clicking image
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

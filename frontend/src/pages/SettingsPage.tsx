@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
-import { User as UserIcon, Lock, Mail } from 'lucide-react';
+import { useEffect, useState, useRef } from 'react';
+import { User as UserIcon, Lock, Mail, Upload } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useAuthStore } from '../store/authStore';
 import { authService } from '../services/auth.service';
+import { uploadService } from '../services/upload.service';
 import toast from 'react-hot-toast';
 import { getUserFriendlyError } from '../utils/errorHandler';
 import { useLoadingStore } from '../store/loadingStore';
@@ -28,8 +29,11 @@ export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<'profile' | 'password'>('profile');
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [profileUser, setProfileUser] = useState<User | null>((user as User) || null);
   const [nameInput, setNameInput] = useState(user?.name || '');
+  const [avatarTimestamp, setAvatarTimestamp] = useState(0); // For cache busting
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { startLoading, stopLoading } = useLoadingStore();
 
   const {
@@ -151,9 +155,15 @@ export default function SettingsPage() {
             <div className="flex items-center gap-4">
               {profileUser?.avatar ? (
                 <img
-                  src={profileUser.avatar}
+                  key={`${profileUser.avatar}-${avatarTimestamp}`} // Force re-render when avatar changes
+                  src={avatarTimestamp > 0 ? `${profileUser.avatar}${profileUser.avatar.includes('?') ? '&' : '?'}v=${avatarTimestamp}` : profileUser.avatar} // Cache busting only after upload
                   alt={profileUser.name}
-                  className="w-20 h-20 rounded-full"
+                  className="w-20 h-20 rounded-full object-cover border-2 border-gray-200"
+                  onError={(e) => {
+                    // Fallback to initial if image fails to load
+                    const target = e.target as HTMLImageElement;
+                    target.style.display = 'none';
+                  }}
                 />
               ) : (
                 <div className="w-20 h-20 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 font-medium text-2xl">
@@ -161,10 +171,62 @@ export default function SettingsPage() {
                 </div>
               )}
               <div>
-                <button type="button" className="btn btn-secondary" disabled>
-                  Change Photo
+                <button 
+                  type="button" 
+                  className="btn btn-secondary flex items-center gap-2"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isUploadingAvatar}
+                >
+                  <Upload className="w-4 h-4" />
+                  {isUploadingAvatar ? 'Uploading...' : 'Change Photo'}
                 </button>
-                <p className="text-xs text-gray-500 mt-1">JPG, PNG or GIF. Max size 2MB</p>
+                <p className="text-xs text-gray-500 mt-1">JPG, PNG or WebP. Max size 5MB</p>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/jpg,image/png,image/webp"
+                  className="hidden"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file || !profileUser) return;
+
+                    // Validate file type
+                    if (!file.type.startsWith('image/')) {
+                      toast.error('Please select an image file');
+                      return;
+                    }
+
+                    // Validate file size (5MB)
+                    if (file.size > 5 * 1024 * 1024) {
+                      toast.error('File size must be less than 5MB');
+                      return;
+                    }
+
+                    setIsUploadingAvatar(true);
+                    startLoading('Uploading profile image...');
+                    try {
+                      await uploadService.uploadUserAvatar(profileUser.id, file);
+                      // Reload user data from server to get the latest avatar URL
+                      const refreshedUser = await authService.getCurrentUser();
+                      setProfileUser(refreshedUser);
+                      useAuthStore.setState({ user: refreshedUser });
+                      // Update timestamp to force image refresh
+                      setAvatarTimestamp(Date.now());
+                      toast.success('Profile image uploaded successfully');
+                    } catch (error: any) {
+                      toast.error(getUserFriendlyError(error, { 
+                        action: 'upload', 
+                        entity: 'profile image' 
+                      }));
+                    } finally {
+                      setIsUploadingAvatar(false);
+                      stopLoading();
+                      if (fileInputRef.current) {
+                        fileInputRef.current.value = '';
+                      }
+                    }
+                  }}
+                />
               </div>
             </div>
 

@@ -105,6 +105,7 @@ export async function updateCreator(creatorId: string, input: UpdateCreatorInput
       revenueSharePercent,
       fixedSalaryCost,
       ...(input.isActive !== undefined && { isActive: input.isActive }),
+      ...(input.avatar !== undefined && { avatar: input.avatar }),
       ...(input.identificationPhoto !== undefined && { identificationPhoto: input.identificationPhoto }),
     },
   });

@@ -9,6 +9,7 @@ export interface MonthlyFinancial {
   marketingCosts: number;
   toolCosts: number;
   otherCosts: number;
+  customCosts?: Array<{ name: string; amount: number }>;
   creator: {
     id: string;
     name: string;
@@ -23,6 +24,7 @@ export interface CreateMonthlyFinancialData {
   marketingCosts: number;
   toolCosts: number;
   otherCosts: number;
+  customCosts?: Array<{ name: string; amount: number }>;
 }
 
 export interface GetMonthlyFinancialsParams {

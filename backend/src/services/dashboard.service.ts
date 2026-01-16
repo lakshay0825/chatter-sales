@@ -263,17 +263,25 @@ export async function getAdminDashboard(month: number, year: number, cumulative:
       marketingCosts: number;
       toolCosts: number;
       otherCosts: number;
+      customCosts: Array<{ name: string; amount: number }>;
     };
     
     if (cumulative && creator.monthlyFinancials.length > 0) {
-      // Sum all monthly financials
-      financial = creator.monthlyFinancials.reduce(
-        (acc, mf) => ({
-          grossRevenue: acc.grossRevenue + mf.grossRevenue,
-          marketingCosts: acc.marketingCosts + mf.marketingCosts,
-          toolCosts: acc.toolCosts + mf.toolCosts,
-          otherCosts: acc.otherCosts + mf.otherCosts,
-        }),
+      // Sum all monthly financials and aggregate custom costs
+      const allCustomCosts: Array<{ name: string; amount: number }> = [];
+      const baseFinancial = creator.monthlyFinancials.reduce(
+        (acc, mf) => {
+          // Collect custom costs from each month
+          if (mf.customCosts && Array.isArray(mf.customCosts)) {
+            allCustomCosts.push(...(mf.customCosts as Array<{ name: string; amount: number }>));
+          }
+          return {
+            grossRevenue: acc.grossRevenue + mf.grossRevenue,
+            marketingCosts: acc.marketingCosts + mf.marketingCosts,
+            toolCosts: acc.toolCosts + mf.toolCosts,
+            otherCosts: acc.otherCosts + mf.otherCosts,
+          };
+        },
         {
           grossRevenue: 0,
           marketingCosts: 0,
@@ -281,12 +289,26 @@ export async function getAdminDashboard(month: number, year: number, cumulative:
           otherCosts: 0,
         }
       );
+      financial = {
+        ...baseFinancial,
+        customCosts: allCustomCosts,
+      };
     } else {
-      financial = creator.monthlyFinancials[0] || {
+      const mf = creator.monthlyFinancials[0];
+      financial = mf ? {
+        grossRevenue: mf.grossRevenue,
+        marketingCosts: mf.marketingCosts,
+        toolCosts: mf.toolCosts,
+        otherCosts: mf.otherCosts,
+        customCosts: (mf.customCosts && Array.isArray(mf.customCosts)) 
+          ? (mf.customCosts as Array<{ name: string; amount: number }>)
+          : [],
+      } : {
         grossRevenue: 0,
         marketingCosts: 0,
         toolCosts: 0,
         otherCosts: 0,
+        customCosts: [],
       };
     }
 
@@ -306,8 +328,13 @@ export async function getAdminDashboard(month: number, year: number, cumulative:
     // Calculate net revenue (total sales minus creator earnings only)
     const netRevenue = totalSalesAmount - creatorEarnings;
     
-    // Calculate agency profit (net revenue minus all costs)
-    const agencyProfit = netRevenue - financial.marketingCosts - financial.toolCosts - financial.otherCosts;
+    // Calculate total custom costs
+    const customCostsTotal = financial.customCosts 
+      ? financial.customCosts.reduce((sum: number, cost: { name: string; amount: number }) => sum + (cost.amount || 0), 0)
+      : 0;
+    
+    // Calculate agency profit (net revenue minus all costs including custom costs)
+    const agencyProfit = netRevenue - financial.marketingCosts - financial.toolCosts - financial.otherCosts - customCostsTotal;
 
     return {
       creatorId: creator.id,
@@ -321,6 +348,7 @@ export async function getAdminDashboard(month: number, year: number, cumulative:
       marketingCosts: financial.marketingCosts,
       toolCosts: financial.toolCosts,
       otherCosts: financial.otherCosts,
+      customCosts: financial.customCosts || [],
       netRevenue,
       agencyProfit,
     };

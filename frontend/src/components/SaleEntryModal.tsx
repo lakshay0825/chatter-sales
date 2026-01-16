@@ -13,6 +13,7 @@ import { getCurrentTimeString, getCurrentTimezoneAbbr } from '../utils/date';
 const saleSchema = z.object({
   creatorId: z.string().min(1, 'Creator is required'),
   amount: z.number().positive('Amount must be positive'),
+  baseAmount: z.number().min(0).optional(),
   saleType: z.nativeEnum(SaleType),
   note: z.string().optional(),
   saleDate: z.date().optional(),
@@ -56,6 +57,7 @@ export default function SaleEntryModal({ isOpen, onClose, onSuccess }: SaleEntry
       reset({
         creatorId: '',
         amount: undefined as unknown as number,
+        baseAmount: undefined as unknown as number,
         saleType: SaleType.CAM,
         note: '',
         saleDate: undefined,
@@ -102,6 +104,7 @@ export default function SaleEntryModal({ isOpen, onClose, onSuccess }: SaleEntry
       const saleData: CreateSaleData = {
         creatorId: data.creatorId,
         amount: data.amount,
+        baseAmount: data.baseAmount,
         saleType: data.saleType,
         note: data.note,
         saleDate: isBackdating ? data.saleDate : undefined,
@@ -230,6 +233,27 @@ export default function SaleEntryModal({ isOpen, onClose, onSuccess }: SaleEntry
             />
             {errors.amount && (
               <p className="mt-1 text-sm text-red-600">{errors.amount.message}</p>
+            )}
+          </div>
+
+          {/* BASE Amount */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              BASE ($) <span className="text-xs text-gray-500">(Optional - counts toward chatter earnings only)</span>
+            </label>
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              {...register('baseAmount', { valueAsNumber: true })}
+              className="input"
+              placeholder="0.00"
+            />
+            <p className="mt-1 text-xs text-gray-500">
+              BASE amount is counted toward chatter earnings but not creator earnings
+            </p>
+            {errors.baseAmount && (
+              <p className="mt-1 text-sm text-red-600">{errors.baseAmount.message}</p>
             )}
           </div>
 

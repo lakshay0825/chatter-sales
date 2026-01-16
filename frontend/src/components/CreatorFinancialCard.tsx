@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, Edit2, Save } from 'lucide-react';
+import { X, Edit2, Save, Plus, Trash2 } from 'lucide-react';
 import { monthlyFinancialService } from '../services/monthlyFinancial.service';
 import toast from 'react-hot-toast';
 import { getUserFriendlyError } from '../utils/errorHandler';
@@ -17,6 +17,7 @@ interface CreatorFinancialCardProps {
   marketingCosts: number;
   toolCosts: number;
   otherCosts: number;
+  customCosts?: Array<{ name: string; amount: number }>;
   netRevenue: number;
   month: number;
   year: number;
@@ -35,6 +36,7 @@ export default function CreatorFinancialCard({
   marketingCosts: initialMarketingCosts,
   toolCosts: initialToolCosts,
   otherCosts: initialOtherCosts,
+  customCosts: initialCustomCosts = [],
   netRevenue: initialNetRevenue,
   month,
   year,
@@ -46,12 +48,14 @@ export default function CreatorFinancialCard({
   const [marketingCosts, setMarketingCosts] = useState(initialMarketingCosts);
   const [toolCosts, setToolCosts] = useState(initialToolCosts);
   const [otherCosts, setOtherCosts] = useState(initialOtherCosts);
+  const [customCosts, setCustomCosts] = useState<Array<{ name: string; amount: number }>>(initialCustomCosts || []);
 
   // Earnings are calculated from actual sales (totalSalesAmount), not from manually entered grossRevenue
   // The backend already calculates this correctly, so we use the provided creatorEarnings
   // Calculate derived values based on actual sales
   const netRevenue = initialNetRevenue; // Already calculated from totalSalesAmount - creatorEarnings
-  const agencyProfit = netRevenue - marketingCosts - toolCosts - otherCosts;
+  const customCostsTotal = customCosts.reduce((sum, cost) => sum + (cost.amount || 0), 0);
+  const agencyProfit = netRevenue - marketingCosts - toolCosts - otherCosts - customCostsTotal;
 
   const handleSave = async () => {
     setIsLoading(true);
@@ -61,6 +65,7 @@ export default function CreatorFinancialCard({
         marketingCosts,
         toolCosts,
         otherCosts,
+        customCosts: customCosts.length > 0 ? customCosts : undefined,
       });
       toast.success('Financial data updated successfully');
       setIsEditing(false);
@@ -77,7 +82,22 @@ export default function CreatorFinancialCard({
     setMarketingCosts(initialMarketingCosts);
     setToolCosts(initialToolCosts);
     setOtherCosts(initialOtherCosts);
+    setCustomCosts(initialCustomCosts || []);
     setIsEditing(false);
+  };
+
+  const handleAddCustomCost = () => {
+    setCustomCosts([...customCosts, { name: '', amount: 0 }]);
+  };
+
+  const handleUpdateCustomCost = (index: number, field: 'name' | 'amount', value: string | number) => {
+    const updated = [...customCosts];
+    updated[index] = { ...updated[index], [field]: value };
+    setCustomCosts(updated);
+  };
+
+  const handleDeleteCustomCost = (index: number) => {
+    setCustomCosts(customCosts.filter((_, i) => i !== index));
   };
 
   return (
@@ -231,6 +251,63 @@ export default function CreatorFinancialCard({
               </span>
             )}
           </div>
+
+          {/* Custom Costs */}
+          {customCosts.length > 0 && (
+            <div className="pt-2 border-t border-gray-200">
+              <div className="text-xs font-medium text-gray-500 mb-2">Custom Costs</div>
+              {customCosts.map((cost, index) => (
+                <div key={index} className="flex justify-between items-center mb-2">
+                  {isEditing ? (
+                    <>
+                      <input
+                        type="text"
+                        value={cost.name}
+                        onChange={(e) => handleUpdateCustomCost(index, 'name', e.target.value)}
+                        placeholder="Cost name"
+                        className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary-500 mr-2"
+                      />
+                      <input
+                        type="number"
+                        value={cost.amount}
+                        onChange={(e) => handleUpdateCustomCost(index, 'amount', parseFloat(e.target.value) || 0)}
+                        className="w-24 px-2 py-1 text-sm font-medium text-red-600 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary-500"
+                        step="0.01"
+                        min="0"
+                      />
+                      <button
+                        onClick={() => handleDeleteCustomCost(index)}
+                        className="ml-2 p-1 text-red-400 hover:text-red-600 transition-colors"
+                        title="Delete cost"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-sm text-gray-600">{cost.name || 'Unnamed Cost'}</span>
+                      <span className="text-sm font-medium text-red-600">
+                        -${(cost.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    </>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Add Custom Cost Button (only in edit mode) */}
+          {isEditing && (
+            <div className="pt-2 border-t border-gray-200">
+              <button
+                onClick={handleAddCustomCost}
+                className="flex items-center gap-2 text-sm text-primary-600 hover:text-primary-700 font-medium"
+              >
+                <Plus className="w-4 h-4" />
+                Add Custom Cost
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Agency Profit */}

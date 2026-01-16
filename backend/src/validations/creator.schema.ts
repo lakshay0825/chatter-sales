@@ -44,6 +44,7 @@ export const updateCreatorSchema = z.object({
     revenueSharePercent: z.number().min(0).max(100).optional(),
     fixedSalaryCost: z.number().min(0).optional(),
     isActive: z.boolean().optional(),
+    avatar: z.string().optional(),
     identificationPhoto: z.string().optional(),
   }),
 });

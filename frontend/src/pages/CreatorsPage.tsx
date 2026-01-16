@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Plus, Edit, Trash2, MoreVertical, Upload, X } from 'lucide-react';
+import { Plus, Edit, Trash2, MoreVertical, Upload, X, Eye } from 'lucide-react';
 import { Creator, UserRole } from '../types';
 import { creatorService, CreateCreatorData } from '../services/creator.service';
 import { uploadService } from '../services/upload.service';
@@ -68,7 +68,10 @@ export default function CreatorsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedCreator, setSelectedCreator] = useState<Creator | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState<string | null>(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState<string | null>(null);
+  const [viewingPhoto, setViewingPhoto] = useState<{ url: string; name: string; type: 'avatar' | 'identification' } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
 
   const isAdmin = user?.role === UserRole.ADMIN;
 
@@ -207,16 +210,22 @@ export default function CreatorsPage() {
     }
   };
 
-  const handleFileSelect = (creatorId: string) => {
-    if (fileInputRef.current) {
+  const handleFileSelect = (creatorId: string, type: 'avatar' | 'identification') => {
+    if (type === 'avatar' && avatarInputRef.current) {
+      avatarInputRef.current.setAttribute('data-creator-id', creatorId);
+      avatarInputRef.current.setAttribute('data-upload-type', 'avatar');
+      avatarInputRef.current.click();
+    } else if (type === 'identification' && fileInputRef.current) {
       fileInputRef.current.setAttribute('data-creator-id', creatorId);
+      fileInputRef.current.setAttribute('data-upload-type', 'identification');
       fileInputRef.current.click();
     }
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    const creatorId = fileInputRef.current?.getAttribute('data-creator-id');
+    const creatorId = e.target.getAttribute('data-creator-id');
+    const uploadType = e.target.getAttribute('data-upload-type') as 'avatar' | 'identification';
 
     if (!file || !creatorId) return;
 
@@ -232,21 +241,39 @@ export default function CreatorsPage() {
       return;
     }
 
-    setUploadingPhoto(creatorId);
-    startLoading('Uploading identification photo...');
+    if (uploadType === 'avatar') {
+      setUploadingAvatar(creatorId);
+      startLoading('Uploading profile photo...');
+    } else {
+      setUploadingPhoto(creatorId);
+      startLoading('Uploading identification photo...');
+    }
+
     try {
-      await uploadService.uploadCreatorIdentificationPhoto(creatorId, file);
-      toast.success('Identification photo uploaded successfully');
+      if (uploadType === 'avatar') {
+        await uploadService.uploadCreatorAvatar(creatorId, file);
+        toast.success('Profile photo uploaded successfully');
+      } else {
+        await uploadService.uploadCreatorIdentificationPhoto(creatorId, file);
+        toast.success('Identification photo uploaded successfully');
+      }
       loadCreators();
     } catch (error: any) {
       toast.error(getUserFriendlyError(error, { 
         action: 'upload', 
-        entity: 'identification photo' 
+        entity: uploadType === 'avatar' ? 'profile photo' : 'identification photo' 
       }));
     } finally {
-      setUploadingPhoto(null);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
+      if (uploadType === 'avatar') {
+        setUploadingAvatar(null);
+        if (avatarInputRef.current) {
+          avatarInputRef.current.value = '';
+        }
+      } else {
+        setUploadingPhoto(null);
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
       }
       stopLoading();
     }
@@ -291,9 +318,10 @@ export default function CreatorsPage() {
                 <div className="flex items-center gap-3">
                   {creator.avatar ? (
                     <img
+                      key={`${creator.avatar}-${creator.updatedAt}`} // Force re-render when avatar changes
                       src={creator.avatar}
                       alt={creator.name}
-                      className="w-12 h-12 rounded-full"
+                      className="w-12 h-12 rounded-full object-cover border-2 border-gray-200"
                     />
                   ) : (
                     <div className="w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center text-purple-700 font-medium text-lg">
@@ -339,11 +367,35 @@ export default function CreatorsPage() {
                     {formatItalianDate(creator.createdAt, 'MMM dd, yyyy')}
                   </span>
                 </div>
+                
+                {/* Identification Photo Display */}
+                {creator.identificationPhoto && (
+                  <div className="flex justify-between items-center pt-2 border-t border-gray-100">
+                    <span className="text-sm text-gray-600">ID Photo:</span>
+                    <button
+                      onClick={() => setViewingPhoto({ url: creator.identificationPhoto!, name: creator.name, type: 'identification' })}
+                      className="flex items-center gap-1 text-primary-600 hover:text-primary-700 text-sm font-medium"
+                      title="View identification photo"
+                    >
+                      <Eye className="w-4 h-4" />
+                      View
+                    </button>
+                  </div>
+                )}
               </div>
 
-              <div className="flex items-center gap-2 mt-4 pt-4 border-t border-gray-200">
+              <div className="flex items-center gap-2 mt-4 pt-4 border-t border-gray-200 flex-wrap">
                 <button
-                  onClick={() => handleFileSelect(creator.id)}
+                  onClick={() => handleFileSelect(creator.id, 'avatar')}
+                  disabled={uploadingAvatar === creator.id}
+                  className="btn btn-secondary flex items-center justify-center gap-2 disabled:opacity-50"
+                  title="Upload profile photo"
+                >
+                  <Upload className="w-4 h-4" />
+                  {uploadingAvatar === creator.id ? 'Uploading...' : 'Upload Photo'}
+                </button>
+                <button
+                  onClick={() => handleFileSelect(creator.id, 'identification')}
                   disabled={uploadingPhoto === creator.id}
                   className="btn btn-secondary flex items-center justify-center gap-2 disabled:opacity-50"
                   title="Upload identification photo"
@@ -505,7 +557,7 @@ export default function CreatorsPage() {
         </div>
       )}
 
-      {/* Hidden file input for photo upload */}
+      {/* Hidden file input for identification photo upload */}
       <input
         ref={fileInputRef}
         type="file"
@@ -513,6 +565,45 @@ export default function CreatorsPage() {
         className="hidden"
         onChange={handleFileUpload}
       />
+
+      {/* Hidden file input for avatar upload */}
+      <input
+        ref={avatarInputRef}
+        type="file"
+        accept="image/jpeg,image/jpg,image/png,image/webp"
+        className="hidden"
+        onChange={handleFileUpload}
+      />
+
+      {/* Photo Viewer Modal */}
+      {viewingPhoto && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4"
+          onClick={() => setViewingPhoto(null)}
+        >
+          <div className="relative max-w-4xl w-full max-h-[90vh] bg-white rounded-lg overflow-hidden">
+            <div className="flex items-center justify-between p-4 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900">
+                {viewingPhoto.type === 'avatar' ? 'Profile Photo' : 'Identification Photo'} - {viewingPhoto.name}
+              </h3>
+              <button
+                onClick={() => setViewingPhoto(null)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            <div className="p-4 flex items-center justify-center bg-gray-50" style={{ minHeight: '400px' }}>
+              <img
+                src={viewingPhoto.url}
+                alt={viewingPhoto.type === 'avatar' ? 'Profile photo' : 'Identification photo'}
+                className="max-w-full max-h-[calc(90vh-120px)] object-contain rounded-lg shadow-lg"
+                onClick={(e) => e.stopPropagation()} // Prevent closing when clicking image
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

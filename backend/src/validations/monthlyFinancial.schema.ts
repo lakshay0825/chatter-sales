@@ -12,6 +12,10 @@ export const monthlyFinancialSchema = z.object({
     marketingCosts: z.number().min(0).default(0),
     toolCosts: z.number().min(0).default(0),
     otherCosts: z.number().min(0).default(0),
+    customCosts: z.array(z.object({
+      name: z.string().min(1, 'Cost name is required'),
+      amount: z.number().min(0, 'Amount must be positive'),
+    })).optional(),
   }),
 });
 

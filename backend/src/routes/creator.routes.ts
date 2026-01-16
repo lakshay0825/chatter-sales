@@ -6,7 +6,7 @@ import {
   updateCreatorHandler,
   deleteCreatorHandler,
 } from '../controllers/creator.controller';
-import { uploadCreatorIdentificationPhotoHandler } from '../controllers/upload.controller';
+import { uploadCreatorIdentificationPhotoHandler, uploadCreatorAvatarHandler } from '../controllers/upload.controller';
 import { createCreatorSchema, updateCreatorSchema } from '../validations/creator.schema';
 import { validate } from '../middleware/validate';
 import { authenticate, requireAdmin } from '../middleware/auth';
@@ -118,6 +118,27 @@ export async function creatorRoutes(fastify: FastifyInstance) {
       },
     },
     uploadCreatorIdentificationPhotoHandler as any
+  );
+
+  // Upload avatar/profile image (Admin only)
+  fastify.post(
+    '/:id/avatar',
+    {
+      preHandler: [requireAdmin],
+      schema: {
+        description: 'Upload profile image for a creator (Admin only)',
+        tags: ['creators'],
+        security: [{ bearerAuth: [] }],
+        consumes: ['multipart/form-data'],
+        params: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+          },
+        },
+      },
+    },
+    uploadCreatorAvatarHandler as any
   );
 }
 

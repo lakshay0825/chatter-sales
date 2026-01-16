@@ -4,6 +4,7 @@ import { ApiResponse, Sale, PaginatedResponse, SaleType, SaleStatus } from '../t
 export interface CreateSaleData {
   creatorId: string;
   amount: number;
+  baseAmount?: number;
   saleType: SaleType;
   note?: string;
   saleDate?: Date;
@@ -12,6 +13,7 @@ export interface CreateSaleData {
 export interface UpdateSaleData {
   creatorId?: string;
   amount?: number;
+  baseAmount?: number;
   saleType?: SaleType;
   note?: string;
   saleDate?: Date;

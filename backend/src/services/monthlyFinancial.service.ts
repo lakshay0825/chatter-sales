@@ -36,12 +36,14 @@ export async function upsertMonthlyFinancial(
       marketingCosts: input.marketingCosts,
       toolCosts: input.toolCosts,
       otherCosts: input.otherCosts,
+      customCosts: input.customCosts || [],
     },
     update: {
       grossRevenue: input.grossRevenue,
       marketingCosts: input.marketingCosts,
       toolCosts: input.toolCosts,
       otherCosts: input.otherCosts,
+      customCosts: input.customCosts !== undefined ? input.customCosts : undefined,
     },
     include: {
       creator: {
@@ -114,6 +116,7 @@ export async function getMonthlyFinancial(
       marketingCosts: 0,
       toolCosts: 0,
       otherCosts: 0,
+      customCosts: [],
       creator,
     };
   }

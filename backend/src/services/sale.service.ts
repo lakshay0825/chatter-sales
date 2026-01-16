@@ -31,6 +31,7 @@ export async function createSale(
   const sale = await prisma.sale.create({
     data: {
       amount: input.amount,
+      baseAmount: input.baseAmount || 0,
       saleType: input.saleType,
       note: input.note,
       saleDate,
@@ -232,6 +233,7 @@ export async function updateSale(
     where: { id: saleId },
     data: {
       ...(input.amount !== undefined && { amount: input.amount }),
+      ...(input.baseAmount !== undefined && { baseAmount: input.baseAmount }),
       ...(input.saleType !== undefined && { saleType: input.saleType }),
       ...(input.note !== undefined && { note: input.note }),
       ...(input.saleDate !== undefined && { saleDate: input.saleDate, status }),

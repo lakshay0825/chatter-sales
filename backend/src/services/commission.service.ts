@@ -34,16 +34,21 @@ export async function calculateCommission(
     },
     select: {
       amount: true,
+      baseAmount: true,
     },
   });
 
-  const totalSales = sales.reduce((sum: number, sale) => sum + sale.amount, 0);
+  // For chatter earnings: include both amount and baseAmount
+  const totalSalesForCommission = sales.reduce(
+    (sum: number, sale) => sum + sale.amount + (sale.baseAmount || 0),
+    0
+  );
 
-  // Calculate commission: (sales * commissionPercent) + fixedSalary
+  // Calculate commission: ((amount + baseAmount) * commissionPercent) + fixedSalary
   let commission = 0;
   
   if (user.commissionPercent !== null) {
-    commission += (totalSales * user.commissionPercent) / 100;
+    commission += (totalSalesForCommission * user.commissionPercent) / 100;
   }
   
   if (user.fixedSalary !== null) {
@@ -93,7 +98,8 @@ export async function getUserSalesTotal(
   const startDate = new Date(year, month - 1, 1);
   const endDate = new Date(year, month, 0, 23, 59, 59, 999);
 
-  const result = await prisma.sale.aggregate({
+  // Get all sales and sum amount + baseAmount for total revenue
+  const sales = await prisma.sale.findMany({
     where: {
       userId,
       saleDate: {
@@ -101,11 +107,12 @@ export async function getUserSalesTotal(
         lte: endDate,
       },
     },
-    _sum: {
+    select: {
       amount: true,
+      baseAmount: true,
     },
   });
 
-  return result._sum.amount || 0;
+  return sales.reduce((sum, sale) => sum + sale.amount + (sale.baseAmount || 0), 0);
 }
 

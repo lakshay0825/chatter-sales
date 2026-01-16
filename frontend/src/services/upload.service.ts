@@ -40,4 +40,26 @@ export const uploadService = {
     );
     return response.data.data!;
   },
+
+  async uploadUserAvatar(userId: string, file: File): Promise<User> {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await uploadApi.post<ApiResponse<User>>(
+      `/users/${userId}/avatar`,
+      formData
+    );
+    return response.data.data!;
+  },
+
+  async uploadCreatorAvatar(creatorId: string, file: File): Promise<Creator> {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await uploadApi.post<ApiResponse<Creator>>(
+      `/creators/${creatorId}/avatar`,
+      formData
+    );
+    return response.data.data!;
+  },
 };

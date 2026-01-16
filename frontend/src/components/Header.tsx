@@ -86,9 +86,17 @@ export default function Header({ onMenuClick }: HeaderProps) {
                     {user?.role?.replace('_', ' ')}
                   </span>
                 </div>
-                <div className="w-8 h-8 rounded-full bg-primary-500 flex items-center justify-center text-white font-semibold">
-                  {user?.name?.charAt(0).toUpperCase()}
-                </div>
+                {user?.avatar ? (
+                  <img
+                    src={user.avatar}
+                    alt={user.name || 'User'}
+                    className="w-8 h-8 rounded-full object-cover border-2 border-gray-200"
+                  />
+                ) : (
+                  <div className="w-8 h-8 rounded-full bg-primary-500 flex items-center justify-center text-white font-semibold">
+                    {user?.name?.charAt(0).toUpperCase()}
+                  </div>
+                )}
                 <ChevronDown className="w-4 h-4 text-gray-500 hidden sm:block" />
               </button>
 
@@ -101,10 +109,25 @@ export default function Header({ onMenuClick }: HeaderProps) {
                   />
                   <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-20">
                     <div className="px-4 py-3 border-b border-gray-200 sm:hidden">
-                      <p className="text-sm font-medium text-gray-900">{user?.name}</p>
-                      <p className={`text-xs mt-1 inline-block px-2 py-1 rounded-full ${getRoleBadgeColor(user?.role)}`}>
-                        {user?.role?.replace('_', ' ')}
-                      </p>
+                      <div className="flex items-center gap-3 mb-2">
+                        {user?.avatar ? (
+                          <img
+                            src={user.avatar}
+                            alt={user.name || 'User'}
+                            className="w-10 h-10 rounded-full object-cover border-2 border-gray-200"
+                          />
+                        ) : (
+                          <div className="w-10 h-10 rounded-full bg-primary-500 flex items-center justify-center text-white font-semibold">
+                            {user?.name?.charAt(0).toUpperCase()}
+                          </div>
+                        )}
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">{user?.name}</p>
+                          <p className={`text-xs mt-1 inline-block px-2 py-1 rounded-full ${getRoleBadgeColor(user?.role)}`}>
+                            {user?.role?.replace('_', ' ')}
+                          </p>
+                        </div>
+                      </div>
                     </div>
                     <Link
                       to="/settings"

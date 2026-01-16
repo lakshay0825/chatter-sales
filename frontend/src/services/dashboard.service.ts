@@ -36,6 +36,7 @@ export interface AdminDashboardData {
     marketingCosts: number;
     toolCosts: number;
     otherCosts: number;
+    customCosts: Array<{ name: string; amount: number }>;
     netRevenue: number;
     agencyProfit: number;
   }>;

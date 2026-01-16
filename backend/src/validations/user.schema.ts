@@ -25,6 +25,7 @@ export const updateUserSchema = z.object({
     commissionPercent: z.number().min(0).max(100).optional(),
     fixedSalary: z.number().min(0).optional(),
     isActive: z.boolean().optional(),
+    avatar: z.string().optional(),
     identificationPhoto: z.string().optional(),
   }),
 });

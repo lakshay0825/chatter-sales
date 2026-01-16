@@ -188,3 +188,31 @@ body {
   }
 }
 
+/* Fix mobile dropdown menus (black on black text issue, especially iPhone) */
+select,
+select.input {
+  background-color: white !important;
+  color: #111827 !important;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+}
+
+select option {
+  background-color: white !important;
+  color: #111827 !important;
+}
+
+/* Dark mode support for dropdowns */
+@media (prefers-color-scheme: dark) {
+  select,
+  select.input {
+    background-color: #1f2937 !important;
+    color: #f9fafb !important;
+  }
+  
+  select option {
+    background-color: #1f2937 !important;
+    color: #f9fafb !important;
+  }
+}

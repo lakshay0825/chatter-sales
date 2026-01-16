@@ -14,6 +14,7 @@ import { getUserFriendlyError } from '../utils/errorHandler';
 const updateSaleSchema = z.object({
   creatorId: z.string().min(1, 'Creator is required'),
   amount: z.number().positive('Amount must be positive'),
+  baseAmount: z.number().min(0).optional(),
   saleType: z.nativeEnum(SaleType),
   note: z.string().optional(),
   saleDate: z.date().optional(),
@@ -62,6 +63,7 @@ export default function EditSaleModal({
       reset({
         creatorId: sale.creatorId,
         amount: sale.amount,
+        baseAmount: (sale as any).baseAmount || 0,
         saleType: sale.saleType,
         note: sale.note || '',
         saleDate: new Date(sale.saleDate),
@@ -121,6 +123,7 @@ export default function EditSaleModal({
       const updateData: UpdateSaleData = {
         creatorId: data.creatorId,
         amount: data.amount,
+        baseAmount: data.baseAmount,
         saleType: data.saleType,
         note: data.note,
         saleDate: data.saleDate,
@@ -211,6 +214,27 @@ export default function EditSaleModal({
             />
             {errors.amount && (
               <p className="mt-1 text-sm text-red-600">{errors.amount.message}</p>
+            )}
+          </div>
+
+          {/* BASE Amount */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              BASE ($) <span className="text-xs text-gray-500">(Optional - counts toward chatter earnings only)</span>
+            </label>
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              {...register('baseAmount', { valueAsNumber: true })}
+              className="input"
+              disabled={!canEdit}
+            />
+            <p className="mt-1 text-xs text-gray-500">
+              BASE amount is counted toward chatter earnings but not creator earnings
+            </p>
+            {errors.baseAmount && (
+              <p className="mt-1 text-sm text-red-600">{errors.baseAmount.message}</p>
             )}
           </div>
 

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Download, FileSpreadsheet, FileText, MoreVertical, User as UserIcon, Tag, Filter, ShoppingCart } from 'lucide-react';
+import { Plus, Download, FileSpreadsheet, FileText, MoreVertical, User as UserIcon, Tag, Filter, ShoppingCart, Trash2 } from 'lucide-react';
 import { Sale, SaleType, SaleStatus, Creator } from '../types';
 import { saleService, GetSalesParams } from '../services/sale.service';
 import { creatorService } from '../services/creator.service';
@@ -10,14 +10,21 @@ import { getUserFriendlyError } from '../utils/errorHandler';
 import SaleEntryModal from '../components/SaleEntryModal';
 import EditSaleModal from '../components/EditSaleModal';
 import DateRangePicker from '../components/DateRangePicker';
+import { openConfirm } from '../components/ConfirmDialog';
+import { useAuthStore } from '../store/authStore';
+import { UserRole } from '../types';
 
 export default function SalesPage() {
+  const { user } = useAuthStore();
   const [sales, setSales] = useState<Sale[]>([]);
   const [creators, setCreators] = useState<Creator[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
+  const [deletingSaleId, setDeletingSaleId] = useState<string | null>(null);
+  
+  const canDeleteSales = user?.role === UserRole.ADMIN || user?.role === UserRole.CHATTER_MANAGER;
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 20,
@@ -158,6 +165,29 @@ export default function SalesPage() {
     return status === SaleStatus.ONLINE
       ? 'bg-green-100 text-green-800'
       : 'bg-gray-100 text-gray-800';
+  };
+
+  const handleDeleteSale = async (saleId: string) => {
+    const confirmed = await openConfirm({
+      title: 'Delete Sale',
+      message: 'Are you sure you want to delete this sale? This action cannot be undone.',
+      confirmLabel: 'Delete',
+      cancelLabel: 'Cancel',
+      variant: 'danger',
+    });
+    
+    if (!confirmed) return;
+
+    setDeletingSaleId(saleId);
+    try {
+      await saleService.deleteSale(saleId);
+      toast.success('Sale deleted successfully');
+      loadSales();
+    } catch (error: any) {
+      toast.error(getUserFriendlyError(error, { action: 'delete', entity: 'sale' }));
+    } finally {
+      setDeletingSaleId(null);
+    }
   };
 
   return (
@@ -414,16 +444,27 @@ export default function SalesPage() {
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        <div className="relative">
+                        <div className="flex items-center gap-2">
                           <button
                             onClick={() => {
                               setSelectedSale(sale);
                               setIsEditModalOpen(true);
                             }}
                             className="text-gray-400 hover:text-gray-600"
+                            title="Edit sale"
                           >
                             <MoreVertical className="w-5 h-5" />
                           </button>
+                          {canDeleteSales && (
+                            <button
+                              onClick={() => handleDeleteSale(sale.id)}
+                              disabled={deletingSaleId === sale.id}
+                              className="text-red-400 hover:text-red-600 disabled:opacity-50"
+                              title="Delete sale"
+                            >
+                              <Trash2 className="w-5 h-5" />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
