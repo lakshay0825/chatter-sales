@@ -19,10 +19,6 @@ const createUserSchema = z.object({
   role: z.nativeEnum(UserRole),
   commissionPercent: z.number().min(0).max(100).optional(),
   fixedSalary: z.number().min(0).optional(),
-}).refine((data) => {
-  // Email is required only when creating (not updating)
-  // We'll check this in the component
-  return true;
 });
 
 type CreateUserFormData = z.infer<typeof createUserSchema>;
@@ -121,7 +117,12 @@ export default function UsersPage() {
         });
         toast.success('User updated successfully');
       } else {
-        // Create new user
+        // Create new user - email is required
+        if (!data.email) {
+          toast.error('Email is required when creating a new user');
+          return;
+        }
+        
         const userData: CreateUserData = {
           email: data.email,
           name: data.name,
