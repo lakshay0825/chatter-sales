@@ -56,10 +56,10 @@ export default function RegisterPage() {
         email: response.user.email,
         role: response.user.role,
         name: '',
-        avatar: null,
+        avatar: undefined,
         isActive: true,
-        commissionPercent: null,
-        fixedSalary: null,
+        commissionPercent: undefined,
+        fixedSalary: undefined,
         createdAt: new Date().toISOString(),
       });
       toast.success('Account activated successfully!');
