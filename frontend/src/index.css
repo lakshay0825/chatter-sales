@@ -188,9 +188,15 @@ body {
   }
 }
 
-/* Fix mobile dropdown menus (black on black text issue, especially iPhone) */
+/* Fix mobile dropdown menus and input fields (black on black text issue, especially iPhone) */
 select,
-select.input {
+select.input,
+input.input,
+input[type="text"].input,
+input[type="email"].input,
+input[type="number"].input,
+input[type="datetime-local"].input,
+textarea.input {
   background-color: white !important;
   color: #111827 !important;
   -webkit-appearance: none;

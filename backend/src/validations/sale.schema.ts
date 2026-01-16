@@ -5,11 +5,21 @@ import { SaleType } from '@prisma/client';
 export const createSaleSchema = z.object({
   body: z.object({
     creatorId: z.string().cuid('Invalid creator ID'),
-    amount: z.number().positive('Amount must be positive'),
+    amount: z.number().min(0, 'Amount must be non-negative'),
     baseAmount: z.number().min(0).optional(), // BASE amount - optional, defaults to 0
     saleType: z.nativeEnum(SaleType),
     note: z.string().optional(),
     saleDate: z.coerce.date().optional(), // Optional for backdating
+  }).refine((data) => {
+    // If saleType is BASE, amount can be 0, but baseAmount must be > 0
+    // Otherwise, amount must be > 0
+    if (data.saleType === SaleType.BASE) {
+      return (data.amount === 0 && (data.baseAmount || 0) > 0) || data.amount > 0;
+    }
+    return data.amount > 0;
+  }, {
+    message: 'Amount must be positive, or if BASE type is selected, either amount or baseAmount must be positive',
+    path: ['amount'],
   }),
 });
 
@@ -22,12 +32,25 @@ export const updateSaleSchema = z.object({
   }),
   body: z.object({
     creatorId: z.string().cuid().optional(),
-    amount: z.number().positive().optional(),
+    amount: z.number().min(0).optional(),
     baseAmount: z.number().min(0).optional(), // BASE amount - optional
     saleType: z.nativeEnum(SaleType).optional(),
     note: z.string().optional(),
     saleDate: z.coerce.date().optional(),
     userId: z.string().cuid().optional(), // For reassigning sales (managers only)
+  }).refine((data) => {
+    // If saleType is BASE, amount can be 0, but baseAmount must be > 0
+    // Otherwise, if amount is provided, it must be > 0
+    if (data.saleType === SaleType.BASE && data.amount !== undefined) {
+      return (data.amount === 0 && (data.baseAmount || 0) > 0) || data.amount > 0;
+    }
+    if (data.amount !== undefined) {
+      return data.amount > 0;
+    }
+    return true;
+  }, {
+    message: 'Amount must be positive, or if BASE type is selected, either amount or baseAmount must be positive',
+    path: ['amount'],
   }),
 });
 

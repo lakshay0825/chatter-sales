@@ -12,11 +12,21 @@ import { getCurrentTimeString, getCurrentTimezoneAbbr } from '../utils/date';
 
 const saleSchema = z.object({
   creatorId: z.string().min(1, 'Creator is required'),
-  amount: z.number().positive('Amount must be positive'),
+  amount: z.number().min(0, 'Amount must be non-negative'),
   baseAmount: z.number().min(0).optional(),
   saleType: z.nativeEnum(SaleType),
   note: z.string().optional(),
   saleDate: z.date().optional(),
+}).refine((data) => {
+  // If saleType is BASE, amount can be 0, but baseAmount must be > 0
+  // Otherwise, amount must be > 0
+  if (data.saleType === SaleType.BASE) {
+    return (data.amount === 0 && (data.baseAmount || 0) > 0) || data.amount > 0;
+  }
+  return data.amount > 0;
+}, {
+  message: 'Amount must be positive, or if BASE type is selected, either amount or baseAmount must be positive',
+  path: ['amount'],
 });
 
 type SaleFormData = z.infer<typeof saleSchema>;
@@ -215,6 +225,7 @@ export default function SaleEntryModal({ isOpen, onClose, onSuccess }: SaleEntry
               <option value={SaleType.PPV}>PPV</option>
               <option value={SaleType.INITIAL}>INITIAL</option>
               <option value={SaleType.CUSTOM}>CUSTOM</option>
+              <option value={SaleType.BASE}>BASE</option>
             </select>
             {errors.saleType && (
               <p className="mt-1 text-sm text-red-600">{errors.saleType.message}</p>
@@ -223,10 +234,13 @@ export default function SaleEntryModal({ isOpen, onClose, onSuccess }: SaleEntry
 
           {/* Amount */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Amount ($)</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Amount ($) {watch('saleType') === SaleType.BASE && <span className="text-xs text-gray-500 font-normal">(Can be 0 for BASE type)</span>}
+            </label>
             <input
               type="number"
               step="0.01"
+              min="0"
               {...register('amount', { valueAsNumber: true })}
               className="input"
               placeholder="0.00"

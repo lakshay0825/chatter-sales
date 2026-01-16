@@ -14,11 +14,15 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 
 const createUserSchema = z.object({
-  email: z.string().email('Invalid email address'),
+  email: z.string().email('Invalid email address').optional(),
   name: z.string().min(1, 'Name is required'),
   role: z.nativeEnum(UserRole),
   commissionPercent: z.number().min(0).max(100).optional(),
   fixedSalary: z.number().min(0).optional(),
+}).refine((data) => {
+  // Email is required only when creating (not updating)
+  // We'll check this in the component
+  return true;
 });
 
 type CreateUserFormData = z.infer<typeof createUserSchema>;
@@ -50,6 +54,7 @@ export default function UsersPage() {
     handleSubmit,
     formState: { errors },
     reset,
+    setValue,
   } = useForm<CreateUserFormData>({
     resolver: zodResolver(createUserSchema),
     defaultValues: {
@@ -60,6 +65,25 @@ export default function UsersPage() {
   useEffect(() => {
     loadUsers();
   }, [filterRole]);
+
+  // Update form when selectedUser changes
+  useEffect(() => {
+    if (selectedUser) {
+      setValue('name', selectedUser.name);
+      setValue('role', selectedUser.role);
+      setValue('commissionPercent', selectedUser.commissionPercent || undefined);
+      setValue('fixedSalary', selectedUser.fixedSalary || undefined);
+      setValue('email', selectedUser.email); // Set email but it will be disabled
+    } else {
+      reset({
+        email: '',
+        name: '',
+        role: UserRole.CHATTER,
+        commissionPercent: undefined,
+        fixedSalary: undefined,
+      });
+    }
+  }, [selectedUser, setValue, reset]);
 
   const loadUsers = async () => {
     if (!isAdmin) return;
@@ -406,12 +430,17 @@ export default function UsersPage() {
 
             <form onSubmit={handleSubmit(onSubmit)} className="p-4 sm:p-6 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Email {selectedUser && <span className="text-xs text-gray-500 font-normal">(cannot be changed)</span>}
+                </label>
                 <input
                   type="email"
-                  {...register('email')}
+                  {...register('email', { 
+                    required: !selectedUser ? 'Email is required' : false 
+                  })}
                   className="input"
                   disabled={!!selectedUser}
+                  defaultValue={selectedUser?.email || ''}
                 />
                 {errors.email && (
                   <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>

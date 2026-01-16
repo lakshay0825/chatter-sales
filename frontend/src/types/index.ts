@@ -10,6 +10,7 @@ export enum SaleType {
   PPV = 'PPV',
   INITIAL = 'INITIAL',
   CUSTOM = 'CUSTOM',
+  BASE = 'BASE',
 }
 
 export enum SaleStatus {

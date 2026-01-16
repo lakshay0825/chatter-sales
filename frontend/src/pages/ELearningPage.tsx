@@ -314,33 +314,62 @@ export default function ELearningPage() {
               </button>
             </div>
             <div className="px-6 py-4 flex-1 flex flex-col">
-              <video
-                key={activeLesson.id}
-                controls
-                autoPlay
-                className="w-full max-h-[60vh] rounded bg-black"
-                src={activeLesson.videoUrl}
-                onLoadedMetadata={async (e) => {
-                  const videoEl = e.currentTarget as HTMLVideoElement;
-                  const seconds = videoEl.duration;
-                  if (!seconds || Number.isNaN(seconds)) return;
-                  const rounded = Math.round(seconds);
-                  if (rounded === activeLesson.duration) return;
-                  try {
-                    const updated = await lessonService.updateLesson(activeLesson.id, {
-                      duration: rounded,
-                    });
-                    setLessons((prev) =>
-                      prev.map((l) => (l.id === updated.id ? updated : l))
+              {activeLesson.videoUrl?.includes('mega.nz') || activeLesson.videoUrl?.includes('<iframe') ? (
+                <div className="w-full aspect-video rounded-lg overflow-hidden bg-black">
+                  {(() => {
+                    // Extract embed URL from iframe code or use as-is
+                    let embedUrl = activeLesson.videoUrl;
+                    if (embedUrl.includes('<iframe')) {
+                      const iframeMatch = embedUrl.match(/src=["']([^"']+)["']/);
+                      if (iframeMatch) {
+                        embedUrl = iframeMatch[1];
+                      }
+                    } else if (embedUrl.includes('mega.nz/embed/')) {
+                      if (!embedUrl.startsWith('http')) {
+                        embedUrl = `https://${embedUrl}`;
+                      }
+                    }
+                    return (
+                      <iframe
+                        key={activeLesson.id}
+                        src={embedUrl}
+                        className="w-full h-full"
+                        frameBorder="0"
+                        allowFullScreen
+                        title={activeLesson.title}
+                      />
                     );
-                    setActiveLesson(updated);
-                  } catch {
-                    // ignore update error; playback still works
-                  }
-                }}
-              >
-                Your browser does not support the video tag.
-              </video>
+                  })()}
+                </div>
+              ) : (
+                <video
+                  key={activeLesson.id}
+                  controls
+                  autoPlay
+                  className="w-full max-h-[60vh] rounded bg-black"
+                  src={activeLesson.videoUrl}
+                  onLoadedMetadata={async (e) => {
+                    const videoEl = e.currentTarget as HTMLVideoElement;
+                    const seconds = videoEl.duration;
+                    if (!seconds || Number.isNaN(seconds)) return;
+                    const rounded = Math.round(seconds);
+                    if (rounded === activeLesson.duration) return;
+                    try {
+                      const updated = await lessonService.updateLesson(activeLesson.id, {
+                        duration: rounded,
+                      });
+                      setLessons((prev) =>
+                        prev.map((l) => (l.id === updated.id ? updated : l))
+                      );
+                      setActiveLesson(updated);
+                    } catch {
+                      // ignore update error; playback still works
+                    }
+                  }}
+                >
+                  Your browser does not support the video tag.
+                </video>
+              )}
             </div>
           </div>
         </div>
@@ -365,6 +394,7 @@ function UploadLessonModal({
   const [detectedDuration, setDetectedDuration] = useState<number | null>(lesson?.duration ?? null);
   const [videoPreview, setVideoPreview] = useState<string | null>(lesson?.videoUrl || null);
   const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(lesson?.thumbnailUrl || null);
+  const [useEmbed, setUseEmbed] = useState<boolean>(false);
   const { register, handleSubmit, formState: { errors }, reset, watch } = useForm<{
     title: string;
     description: string;
@@ -372,12 +402,14 @@ function UploadLessonModal({
     notes: string;
     video?: FileList;
     thumbnail?: FileList;
+    videoEmbed?: string;
   }>({
     defaultValues: {
       title: lesson?.title || '',
       description: lesson?.description || '',
       category: lesson?.category || '',
       notes: lesson?.notes || '',
+      videoEmbed: lesson?.videoUrl?.includes('mega.nz') || lesson?.videoUrl?.includes('<iframe') ? lesson.videoUrl : '',
     },
   });
 
@@ -387,10 +419,13 @@ function UploadLessonModal({
   // Update previews when lesson changes
   useEffect(() => {
     if (lesson) {
+      const isEmbed = lesson.videoUrl?.includes('mega.nz') || lesson.videoUrl?.includes('<iframe');
+      setUseEmbed(isEmbed);
       setVideoPreview(lesson.videoUrl || null);
       setThumbnailPreview(lesson.thumbnailUrl || null);
       setDetectedDuration(lesson.duration || null);
     } else {
+      setUseEmbed(false);
       setVideoPreview(null);
       setThumbnailPreview(null);
       setDetectedDuration(null);
@@ -436,15 +471,45 @@ function UploadLessonModal({
     };
   };
 
+  // Extract embed URL from iframe code or use as-is
+  const extractEmbedUrl = (embedCode: string): string => {
+    if (!embedCode) return '';
+    
+    // If it's already a URL, return it
+    if (embedCode.startsWith('http://') || embedCode.startsWith('https://')) {
+      return embedCode;
+    }
+    
+    // Try to extract src from iframe
+    const iframeMatch = embedCode.match(/src=["']([^"']+)["']/);
+    if (iframeMatch) {
+      return iframeMatch[1];
+    }
+    
+    // Try to extract Mega embed URL
+    const megaMatch = embedCode.match(/mega\.nz\/embed\/[^"'\s]+/);
+    if (megaMatch) {
+      return `https://${megaMatch[0]}`;
+    }
+    
+    // Return as-is if no pattern matches
+    return embedCode;
+  };
+
   const onSubmit = async (data: any) => {
     setIsUploading(true);
     try {
       let videoUrl = lesson?.videoUrl || '';
       let thumbnailUrl = lesson?.thumbnailUrl;
 
-      if (data.video && data.video[0]) {
+      if (useEmbed && data.videoEmbed) {
+        // Use embed URL
+        videoUrl = extractEmbedUrl(data.videoEmbed);
+      } else if (data.video && data.video[0]) {
+        // Upload file
         videoUrl = await lessonService.uploadMedia(data.video[0]);
       }
+      
       if (data.thumbnail && data.thumbnail[0]) {
         thumbnailUrl = await lessonService.uploadMedia(data.thumbnail[0]);
       }
@@ -529,36 +594,80 @@ function UploadLessonModal({
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Video File (MP4) {lesson && <span className="text-gray-500 font-normal">(optional - leave empty to keep current)</span>}
+              Video Source
             </label>
-            {videoPreview && (
-              <div className="mb-3">
-                <p className="text-xs text-gray-600 mb-2">Current Video Preview:</p>
-                <video
-                  src={videoPreview}
-                  controls
-                  className="w-full max-h-48 rounded-lg bg-black"
-                  onLoadedMetadata={(e) => {
-                    const videoEl = e.currentTarget as HTMLVideoElement;
-                    const seconds = videoEl.duration;
-                    if (!Number.isNaN(seconds) && seconds > 0 && !videoFile?.[0]) {
-                      setDetectedDuration(Math.round(seconds));
-                    }
-                  }}
+            <div className="flex gap-4 mb-3">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  checked={!useEmbed}
+                  onChange={() => setUseEmbed(false)}
+                  className="w-4 h-4"
                 />
-              </div>
-            )}
-            <input
-              type="file"
-              accept="video/mp4"
-              {...register('video', {
-                required: lesson ? false : 'Video file is required',
-                onChange: handleVideoChange,
-              })}
-              className="input"
-            />
-            {lesson && !videoFile?.[0] && (
-              <p className="mt-1 text-xs text-gray-500">Current video will be kept if no new file is selected</p>
+                <span className="text-sm">Upload Video File</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  checked={useEmbed}
+                  onChange={() => setUseEmbed(true)}
+                  className="w-4 h-4"
+                />
+                <span className="text-sm">Use Embed URL (Mega, etc.)</span>
+              </label>
+            </div>
+
+            {!useEmbed ? (
+              <>
+                {videoPreview && !videoPreview.includes('mega.nz') && !videoPreview.includes('<iframe') && (
+                  <div className="mb-3">
+                    <p className="text-xs text-gray-600 mb-2">Current Video Preview:</p>
+                    <video
+                      src={videoPreview}
+                      controls
+                      className="w-full max-h-48 rounded-lg bg-black"
+                      onLoadedMetadata={(e) => {
+                        const videoEl = e.currentTarget as HTMLVideoElement;
+                        const seconds = videoEl.duration;
+                        if (!Number.isNaN(seconds) && seconds > 0 && !videoFile?.[0]) {
+                          setDetectedDuration(Math.round(seconds));
+                        }
+                      }}
+                    />
+                  </div>
+                )}
+                <input
+                  type="file"
+                  accept="video/mp4"
+                  {...register('video', {
+                    required: lesson ? false : (!useEmbed ? 'Video file is required' : false),
+                    onChange: handleVideoChange,
+                  })}
+                  className="input"
+                />
+                {lesson && !videoFile?.[0] && (
+                  <p className="mt-1 text-xs text-gray-500">Current video will be kept if no new file is selected</p>
+                )}
+              </>
+            ) : (
+              <>
+                <label className="block text-xs text-gray-600 mb-2">
+                  Paste Mega embed URL or iframe code (e.g., https://mega.nz/embed/... or full iframe tag)
+                </label>
+                <textarea
+                  {...register('videoEmbed', {
+                    required: useEmbed && !lesson ? 'Embed URL is required' : false,
+                  })}
+                  className="input min-h-[100px] font-mono text-sm"
+                  placeholder="https://mega.nz/embed/etUjiBab#mr9vTPAfqUJPCA5z57BM3at58BngpAi5YzFEcEMOv0Q&#10;or&#10;&lt;iframe width=&quot;640&quot; height=&quot;360&quot; frameborder=&quot;0&quot; src=&quot;https://mega.nz/embed/...&quot; allowfullscreen&gt;&lt;/iframe&gt;"
+                />
+                {errors.videoEmbed && (
+                  <p className="mt-1 text-sm text-red-600">{errors.videoEmbed.message}</p>
+                )}
+                {lesson && !watch('videoEmbed') && (
+                  <p className="mt-1 text-xs text-gray-500">Current embed will be kept if no new embed is provided</p>
+                )}
+              </>
             )}
           </div>
 
