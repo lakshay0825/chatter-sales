@@ -1,6 +1,6 @@
 import { FastifyInstance } from 'fastify';
-import { login, register, getCurrentUser, changePassword, updateCurrentUserHandler } from '../controllers/auth.controller';
-import { loginSchema, registerSchema, changePasswordSchema } from '../validations/auth.schema';
+import { login, register, getCurrentUser, changePassword, updateCurrentUserHandler, forgotPassword, resetPasswordHandler } from '../controllers/auth.controller';
+import { loginSchema, registerSchema, changePasswordSchema, forgotPasswordSchema, resetPasswordSchema } from '../validations/auth.schema';
 import { validate } from '../middleware/validate';
 import { authenticate } from '../middleware/auth';
 
@@ -180,5 +180,77 @@ export async function authRoutes(fastify: FastifyInstance) {
     },
     changePassword as any
   );
-}
 
+  // Forgot password
+  fastify.post(
+    '/forgot-password',
+    {
+      preHandler: [validate(forgotPasswordSchema)],
+      schema: {
+        description: 'Request password reset',
+        tags: ['auth'],
+        body: {
+          type: 'object',
+          required: ['email'],
+          properties: {
+            email: { type: 'string', format: 'email' },
+          },
+        },
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              message: { type: 'string' },
+            },
+          },
+        },
+      },
+    },
+    forgotPassword as any
+  );
+
+  // Reset password
+  fastify.post(
+    '/reset-password',
+    {
+      preHandler: [validate(resetPasswordSchema)],
+      schema: {
+        description: 'Reset password with token',
+        tags: ['auth'],
+        body: {
+          type: 'object',
+          required: ['token', 'password'],
+          properties: {
+            token: { type: 'string' },
+            password: { type: 'string', minLength: 6 },
+          },
+        },
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              data: {
+                type: 'object',
+                properties: {
+                  token: { type: 'string' },
+                  user: {
+                    type: 'object',
+                    properties: {
+                      userId: { type: 'string' },
+                      email: { type: 'string' },
+                      role: { type: 'string' },
+                    },
+                  },
+                },
+              },
+              message: { type: 'string' },
+            },
+          },
+        },
+      },
+    },
+    resetPasswordHandler as any
+  );
+}

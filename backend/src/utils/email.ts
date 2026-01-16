@@ -19,7 +19,7 @@ export async function sendInvitationEmail(
   name: string,
   invitationToken: string
 ): Promise<void> {
-  const frontendUrl = process.env.FRONTEND_URL || process.env.APP_URL || 'http://localhost:5173';
+  const frontendUrl = process.env.FRONTEND_URL || process.env.APP_URL || 'https://app.creatoradvisor.it';
   const invitationUrl = `${frontendUrl}/register?token=${invitationToken}`;
 
   const mailOptions = {
@@ -102,6 +102,74 @@ Se non hai richiesto questo invito, ignora questa email.
   } catch (error) {
     console.error('Error sending email:', error);
     throw new Error('Failed to send invitation email');
+  }
+}
+
+/**
+ * Send password reset email
+ */
+export async function sendPasswordResetEmail(
+  email: string,
+  name: string,
+  resetToken: string
+): Promise<void> {
+  const frontendUrl = process.env.FRONTEND_URL || process.env.APP_URL || 'https://app.creatoradvisor.it';
+  const resetUrl = `${frontendUrl}/reset-password?token=${resetToken}`;
+
+  const mailOptions = {
+    from: process.env.EMAIL_FROM || 'noreply@creatoradvisor.it',
+    to: email,
+    subject: 'Reimposta la tua password - Creator Advisor',
+    html: `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <title>Reset Password</title>
+        </head>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+          <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+            <h2 style="color: #4CAF50;">Ciao${name ? ` ${name}` : ''}!</h2>
+            <p>Abbiamo ricevuto una richiesta per reimpostare la password del tuo account.</p>
+            
+            <div style="margin: 30px 0;">
+              <p>Fai clic sul pulsante qui sotto per reimpostare la tua password:</p>
+              <div style="text-align: center; margin: 20px 0;">
+                <a href="${resetUrl}" 
+                   style="background-color: #4CAF50; color: white; padding: 12px 30px; 
+                          text-decoration: none; border-radius: 5px; display: inline-block;">
+                  Reimposta Password
+                </a>
+              </div>
+              <p style="font-size: 12px; color: #666; margin-top: 10px;">
+                Questo link è valido per 24 ore. Se non hai richiesto questo reset, ignora questa email.
+              </p>
+            </div>
+
+            <p style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; font-size: 12px; color: #999;">
+              Se il pulsante non funziona, copia e incolla questo link nel tuo browser:<br>
+              ${resetUrl}
+            </p>
+          </div>
+        </body>
+      </html>
+    `,
+    text: `
+Ciao${name ? ` ${name}` : ''}!
+Abbiamo ricevuto una richiesta per reimpostare la password del tuo account.
+
+Fai clic su questo link per reimpostare la tua password:
+${resetUrl}
+
+Questo link è valido per 24 ore. Se non hai richiesto questo reset, ignora questa email.
+    `,
+  };
+
+  try {
+    await transporter.sendMail(mailOptions);
+  } catch (error) {
+    console.error('Error sending password reset email:', error);
+    throw new Error('Failed to send password reset email');
   }
 }
 

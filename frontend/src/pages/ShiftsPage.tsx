@@ -40,11 +40,16 @@ export default function ShiftsPage() {
 
   const loadUsers = async () => {
     try {
-      const data = await userService.getUsers({ role: UserRole.CHATTER, isActive: true });
-      setUsers(data);
-      console.log('ShiftsPage: Users loaded:', data.length, data);
-      if (data.length === 0) {
-        console.warn('No active CHATTER users found');
+      // Load both CHATTER and CHATTER_MANAGER users
+      const [chatters, managers] = await Promise.all([
+        userService.getUsers({ role: UserRole.CHATTER, isActive: true }),
+        userService.getUsers({ role: UserRole.CHATTER_MANAGER, isActive: true }),
+      ]);
+      const allUsers = [...chatters, ...managers];
+      setUsers(allUsers);
+      console.log('ShiftsPage: Users loaded:', allUsers.length, allUsers);
+      if (allUsers.length === 0) {
+        console.warn('No active CHATTER or CHATTER_MANAGER users found');
       }
     } catch (error: any) {
       console.error('ShiftsPage: Failed to load users:', error);

@@ -1,6 +1,6 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { loginUser, registerUser } from '../services/auth.service';
-import { LoginInput, RegisterInput } from '../validations/auth.schema';
+import { loginUser, registerUser, requestPasswordReset, resetPassword } from '../services/auth.service';
+import { LoginInput, RegisterInput, ForgotPasswordInput, ResetPasswordInput } from '../validations/auth.schema';
 import { ApiResponse } from '../types';
 import { prisma } from '../config/database';
 
@@ -156,3 +156,40 @@ export async function changePassword(
   return reply.code(200).send(response);
 }
 
+export async function forgotPassword(
+  request: FastifyRequest<{ Body: ForgotPasswordInput }>,
+  reply: FastifyReply
+) {
+  const { email } = request.body;
+  
+  await requestPasswordReset(email);
+
+  // Always return success to prevent email enumeration
+  const response: ApiResponse = {
+    success: true,
+    message: 'If an account exists with that email, a password reset link has been sent.',
+  };
+
+  return reply.code(200).send(response);
+}
+
+export async function resetPasswordHandler(
+  request: FastifyRequest<{ Body: ResetPasswordInput }>,
+  reply: FastifyReply
+) {
+  const { token, password } = request.body;
+  
+  const user = await resetPassword(token, password);
+  const jwtToken = request.server.jwt.sign(user);
+
+  const response: ApiResponse<{ token: string; user: typeof user }> = {
+    success: true,
+    data: {
+      token: jwtToken,
+      user,
+    },
+    message: 'Password reset successfully',
+  };
+
+  return reply.code(200).send(response);
+}

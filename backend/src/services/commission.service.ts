@@ -67,7 +67,7 @@ export async function calculateTotalCommissions(
 ): Promise<number> {
   const users = await prisma.user.findMany({
     where: {
-      role: 'CHATTER',
+      role: { in: ['CHATTER', 'CHATTER_MANAGER'] },
       isActive: true,
     },
     select: {

@@ -107,10 +107,10 @@ export async function getAdminDashboard(month: number, year: number, cumulative:
     endDate = new Date(year, month, 0, 23, 59, 59, 999);
   }
 
-  // Get all chatters
+  // Get all chatters and chatter managers
   const chatters = await prisma.user.findMany({
     where: {
-      role: 'CHATTER',
+      role: { in: ['CHATTER', 'CHATTER_MANAGER'] },
       isActive: true,
     },
     select: {
