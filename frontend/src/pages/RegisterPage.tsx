@@ -58,6 +58,7 @@ export default function RegisterPage() {
         name: '',
         avatar: undefined,
         isActive: true,
+        emailVerified: true,
         commissionPercent: undefined,
         fixedSalary: undefined,
         createdAt: new Date().toISOString(),
