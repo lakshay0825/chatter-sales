@@ -67,6 +67,7 @@ model Creator {
   compensationType        String    // "PERCENTAGE" or "SALARY"
   revenueSharePercent     Float?    // Percentage if compensationType is PERCENTAGE
   fixedSalaryCost         Float?    // Monthly amount if compensationType is SALARY
+  onlyfansCommissionPercent Float?  @default(20) // OnlyFans commission (15% or 20%)
   isActive                Boolean   @default(true)
   createdAt               DateTime  @default(now())
   updatedAt               DateTime  @updatedAt

@@ -35,6 +35,15 @@ const createCreatorSchema = z
       },
       z.number().min(0.01).optional()
     ),
+    onlyfansCommissionPercent: z.preprocess(
+      (val) => {
+        if (val === undefined || val === null || val === '' || isNaN(Number(val))) {
+          return 20; // Default to 20%
+        }
+        return Number(val);
+      },
+      z.number().min(0).max(100).optional()
+    ),
   })
   .refine(
     (data) => {
@@ -96,6 +105,7 @@ export default function CreatorsPage() {
       compensationType: 'PERCENTAGE',
       revenueSharePercent: undefined,
       fixedSalaryCost: undefined,
+      onlyfansCommissionPercent: 20,
     },
   });
 
@@ -123,6 +133,7 @@ export default function CreatorsPage() {
         compensationType: selectedCreator.compensationType as 'PERCENTAGE' | 'SALARY',
         revenueSharePercent: selectedCreator.revenueSharePercent || undefined,
         fixedSalaryCost: selectedCreator.fixedSalaryCost || undefined,
+        onlyfansCommissionPercent: selectedCreator.onlyfansCommissionPercent || 20,
       });
     }
   }, [selectedCreator, reset]);
@@ -158,6 +169,7 @@ export default function CreatorsPage() {
         compensationType: data.compensationType,
         revenueSharePercent,
         fixedSalaryCost,
+        onlyfansCommissionPercent: data.onlyfansCommissionPercent !== undefined ? data.onlyfansCommissionPercent : 20,
       };
 
       console.log('Creating creator with data:', creatorData);
@@ -295,6 +307,7 @@ export default function CreatorsPage() {
               compensationType: 'PERCENTAGE',
               revenueSharePercent: undefined,
               fixedSalaryCost: undefined,
+              onlyfansCommissionPercent: 20,
             });
             setIsModalOpen(true);
           }}
@@ -535,6 +548,27 @@ export default function CreatorsPage() {
                   )}
                 </div>
               )}
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  OnlyFans Commission (%)
+                </label>
+                <select
+                  {...register('onlyfansCommissionPercent', { valueAsNumber: true })}
+                  className="input"
+                >
+                  <option value={20}>20% (Standard)</option>
+                  <option value={15}>15% (With Cashback)</option>
+                </select>
+                <p className="mt-1 text-xs text-gray-500">
+                  OnlyFans commission rate. This is deducted before calculating creator earnings.
+                </p>
+                {errors.onlyfansCommissionPercent && (
+                  <p className="mt-1 text-sm text-red-600">
+                    {errors.onlyfansCommissionPercent.message}
+                  </p>
+                )}
+              </div>
 
               <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 sm:gap-4 pt-4 border-t border-gray-200">
                 <button

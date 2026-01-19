@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Plus, Download, FileSpreadsheet, FileText, MoreVertical, User as UserIcon, Tag, Filter, ShoppingCart, Trash2 } from 'lucide-react';
-import { Sale, SaleType, SaleStatus, Creator } from '../types';
+import { Sale, SaleType, SaleStatus, Creator, User } from '../types';
 import { saleService, GetSalesParams } from '../services/sale.service';
 import { creatorService } from '../services/creator.service';
+import { userService } from '../services/user.service';
 import { exportService } from '../services/export.service';
 import { formatItalianDateTime } from '../utils/date';
 import toast from 'react-hot-toast';
@@ -18,6 +19,7 @@ export default function SalesPage() {
   const { user } = useAuthStore();
   const [sales, setSales] = useState<Sale[]>([]);
   const [creators, setCreators] = useState<Creator[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -40,6 +42,7 @@ export default function SalesPage() {
 
   useEffect(() => {
     loadCreators();
+    loadUsers();
   }, []);
 
   useEffect(() => {
@@ -53,6 +56,16 @@ export default function SalesPage() {
       console.log('SalesPage: Creators loaded:', data.length, data);
     } catch (error: any) {
       console.error('SalesPage: Failed to load creators:', error);
+      // Silently fail for filters - don't show toast
+    }
+  };
+
+  const loadUsers = async () => {
+    try {
+      const data = await userService.getUsers({ isActive: true });
+      setUsers(data);
+    } catch (error: any) {
+      console.error('SalesPage: Failed to load users:', error);
       // Silently fail for filters - don't show toast
     }
   };
@@ -278,6 +291,31 @@ export default function SalesPage() {
             </select>
           </div>
           <div className="relative">
+            <UserIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+            <select
+              className="input pl-10 w-auto min-w-[180px] appearance-none"
+              value={filters.userId || ''}
+              onChange={(e) =>
+                setFilters({
+                  ...filters,
+                  userId: e.target.value || undefined,
+                  page: 1,
+                })
+              }
+            >
+              <option value="">All Chatters</option>
+              {users.length === 0 ? (
+                <option value="" disabled>Loading chatters...</option>
+              ) : (
+                users.map((user) => (
+                  <option key={user.id} value={user.id}>
+                    {user.name}
+                  </option>
+                ))
+              )}
+            </select>
+          </div>
+          <div className="relative">
             <Tag className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
             <select
               className="input pl-10 w-auto min-w-[150px] appearance-none"
@@ -325,6 +363,7 @@ export default function SalesPage() {
               !filters.startDate &&
               !filters.endDate &&
               !filters.creatorId &&
+              !filters.userId &&
               !filters.saleType &&
               !filters.status
             }

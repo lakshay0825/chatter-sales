@@ -60,12 +60,17 @@ export default function CreatorFinancialCard({
   const handleSave = async () => {
     setIsLoading(true);
     try {
+      // Filter out empty custom costs (no name or amount = 0)
+      const validCustomCosts = customCosts.filter(
+        (cost) => cost.name && cost.name.trim() !== '' && (cost.amount || 0) > 0
+      );
+      
       await monthlyFinancialService.upsertMonthlyFinancial(creatorId, year, month, {
         grossRevenue,
         marketingCosts,
         toolCosts,
         otherCosts,
-        customCosts: customCosts.length > 0 ? customCosts : undefined,
+        customCosts: validCustomCosts.length > 0 ? validCustomCosts : undefined,
       });
       toast.success('Financial data updated successfully');
       setIsEditing(false);
@@ -97,7 +102,8 @@ export default function CreatorFinancialCard({
   };
 
   const handleDeleteCustomCost = (index: number) => {
-    setCustomCosts(customCosts.filter((_, i) => i !== index));
+    const updated = customCosts.filter((_, i) => i !== index);
+    setCustomCosts(updated);
   };
 
   return (

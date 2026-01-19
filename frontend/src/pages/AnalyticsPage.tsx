@@ -6,18 +6,27 @@ import {
   ArrowDownRight,
   Trophy,
   Target,
+  DollarSign,
 } from 'lucide-react';
-import { analyticsService } from '../services/analytics.service';
+import { analyticsService, DailyRevenueBreakdown, WeeklyRevenueBreakdown, DateRangeRevenueBreakdown } from '../services/analytics.service';
 import { getCurrentMonthYear, getMonthName } from '../utils/date';
 import { useAuthStore } from '../store/authStore';
 import toast from 'react-hot-toast';
 import { getUserFriendlyError } from '../utils/errorHandler';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import DateRangePicker from '../components/DateRangePicker';
+
+type ViewType = 'DAY' | 'WEEK' | 'MONTH' | 'YTD';
 
 export default function AnalyticsPage() {
   const { user } = useAuthStore();
+  const [viewType, setViewType] = useState<ViewType>('MONTH');
   const [selectedMonth, setSelectedMonth] = useState(getCurrentMonthYear().month);
   const [selectedYear, setSelectedYear] = useState(getCurrentMonthYear().year);
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [ytdStartDate, setYtdStartDate] = useState<string | undefined>(undefined);
+  const [ytdEndDate, setYtdEndDate] = useState<string | undefined>(undefined);
+  const [availableYears, setAvailableYears] = useState<number[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // Comparison data
@@ -26,29 +35,105 @@ export default function AnalyticsPage() {
   const [trendData, setTrendData] = useState<any[]>([]);
   const [performanceIndicators, setPerformanceIndicators] = useState<any>(null);
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
+  const [dailyBreakdown, setDailyBreakdown] = useState<DailyRevenueBreakdown | null>(null);
+  const [weeklyBreakdown, setWeeklyBreakdown] = useState<WeeklyRevenueBreakdown | null>(null);
+  const [dateRangeBreakdown, setDateRangeBreakdown] = useState<DateRangeRevenueBreakdown | null>(null);
+
+  useEffect(() => {
+    loadAvailableYears();
+  }, [user]);
 
   useEffect(() => {
     loadAnalytics();
-  }, [selectedMonth, selectedYear, user]);
+  }, [selectedMonth, selectedYear, selectedDate, viewType, ytdStartDate, ytdEndDate, user]);
+
+  const loadAvailableYears = async () => {
+    try {
+      const userId = user?.role === 'CHATTER' ? user.id : undefined;
+      const years = await analyticsService.getAvailableYears(userId);
+      setAvailableYears(years);
+      // Set default year to latest available or current
+      if (years.length > 0 && !years.includes(selectedYear)) {
+        setSelectedYear(years[years.length - 1]);
+      }
+    } catch (error: any) {
+      console.error('Failed to load available years:', error);
+      // Fallback to current year
+      const currentYear = new Date().getFullYear();
+      setAvailableYears([currentYear]);
+    }
+  };
 
   const loadAnalytics = async () => {
     setIsLoading(true);
     try {
       const userId = user?.role === 'CHATTER' ? user.id : undefined;
 
-      const [mom, yoy, trends, indicators, leaderboardData] = await Promise.all([
-        analyticsService.getMonthOverMonthComparison(selectedMonth, selectedYear, userId),
-        analyticsService.getYearOverYearComparison(selectedYear, userId),
+      const promises: Promise<any>[] = [
         analyticsService.getTrendAnalysis(userId),
         analyticsService.getPerformanceIndicators(selectedMonth, selectedYear, userId),
         analyticsService.getLeaderboard(selectedMonth, selectedYear, 10),
-      ]);
+      ];
 
-      setMomComparison(mom);
-      setYoyComparison(yoy);
-      setTrendData(trends);
-      setPerformanceIndicators(indicators);
-      setLeaderboard(leaderboardData);
+      // Load view-specific data
+      if (viewType === 'DAY') {
+        promises.push(analyticsService.getDailyRevenueBreakdown(new Date(selectedDate), userId));
+      } else if (viewType === 'WEEK') {
+        promises.push(analyticsService.getWeeklyRevenueBreakdown(new Date(selectedDate), userId));
+      } else if (viewType === 'MONTH') {
+        promises.push(
+          analyticsService.getMonthOverMonthComparison(selectedMonth, selectedYear, userId),
+          analyticsService.getYearOverYearComparison(selectedYear, userId)
+        );
+      } else if (viewType === 'YTD') {
+        // For YTD, use custom date range if provided, otherwise use year comparison
+        if (ytdStartDate && ytdEndDate) {
+          promises.push(
+            analyticsService.getDateRangeRevenueBreakdown(
+              new Date(ytdStartDate),
+              new Date(ytdEndDate),
+              userId
+            )
+          );
+        } else {
+          promises.push(analyticsService.getYearOverYearComparison(selectedYear, userId));
+        }
+      }
+
+      const results = await Promise.all(promises);
+      let resultIndex = 0;
+
+      setTrendData(results[resultIndex++]);
+      setPerformanceIndicators(results[resultIndex++]);
+      setLeaderboard(results[resultIndex++]);
+
+      if (viewType === 'DAY') {
+        setDailyBreakdown(results[resultIndex++]);
+        setWeeklyBreakdown(null);
+        setMomComparison(null);
+        setYoyComparison(null);
+      } else if (viewType === 'WEEK') {
+        setWeeklyBreakdown(results[resultIndex++]);
+        setDailyBreakdown(null);
+        setMomComparison(null);
+        setYoyComparison(null);
+      } else if (viewType === 'MONTH') {
+        setMomComparison(results[resultIndex++]);
+        setYoyComparison(results[resultIndex++]);
+        setDailyBreakdown(null);
+        setWeeklyBreakdown(null);
+      } else if (viewType === 'YTD') {
+        if (ytdStartDate && ytdEndDate) {
+          setDateRangeBreakdown(results[resultIndex++]);
+          setYoyComparison(null);
+        } else {
+          setYoyComparison(results[resultIndex++]);
+          setDateRangeBreakdown(null);
+        }
+        setMomComparison(null);
+        setDailyBreakdown(null);
+        setWeeklyBreakdown(null);
+      }
     } catch (error: any) {
       console.error('Failed to load analytics:', error);
       toast.error(getUserFriendlyError(error, { action: 'load', entity: 'analytics data' }));
@@ -66,8 +151,8 @@ export default function AnalyticsPage() {
   }
 
   const months = Array.from({ length: 12 }, (_, i) => i + 1);
-  const currentYear = new Date().getFullYear();
-  const years = Array.from({ length: 5 }, (_, i) => currentYear - 2 + i);
+  // Use available years, or fallback to current year if not loaded yet
+  const years = availableYears.length > 0 ? availableYears : [new Date().getFullYear()];
 
   return (
     <div className="space-y-6">
@@ -77,26 +162,232 @@ export default function AnalyticsPage() {
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Analytics & Insights</h1>
           <p className="text-sm text-gray-600 mt-1">Performance comparisons, trends, and leaderboards</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap w-full sm:w-auto">
+          {/* View Type Selector */}
           <select
-            value={`${selectedMonth}-${selectedYear}`}
-            onChange={(e) => {
-              const [month, year] = e.target.value.split('-');
-              setSelectedMonth(Number(month));
-              setSelectedYear(Number(year));
-            }}
-            className="input w-auto min-w-[180px]"
+            value={viewType}
+            onChange={(e) => setViewType(e.target.value as ViewType)}
+            className="input w-full sm:w-auto sm:min-w-[120px]"
           >
-            {years.flatMap((year) =>
-              months.map((month) => (
-                <option key={`${month}-${year}`} value={`${month}-${year}`}>
-                  {getMonthName(month)} {year}
-                </option>
-              ))
-            )}
+            <option value="DAY">Day</option>
+            <option value="WEEK">Week</option>
+            <option value="MONTH">Month</option>
+            <option value="YTD">YTD</option>
           </select>
+
+          {/* Date/Time Selector based on view type */}
+          {viewType === 'DAY' && (
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="input w-full sm:w-auto sm:min-w-[160px]"
+            />
+          )}
+          {viewType === 'WEEK' && (
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="input w-full sm:w-auto sm:min-w-[160px]"
+            />
+          )}
+          {viewType === 'MONTH' && (
+            <select
+              value={`${selectedMonth}-${selectedYear}`}
+              onChange={(e) => {
+                const [month, year] = e.target.value.split('-');
+                setSelectedMonth(Number(month));
+                setSelectedYear(Number(year));
+              }}
+              className="input w-full sm:w-auto sm:min-w-[180px]"
+            >
+              {years.flatMap((year) =>
+                months.map((month) => (
+                  <option key={`${month}-${year}`} value={`${month}-${year}`}>
+                    {getMonthName(month)} {year}
+                  </option>
+                ))
+              )}
+            </select>
+          )}
+          {viewType === 'YTD' && (
+            <div className="w-full sm:w-auto sm:min-w-[280px]">
+              <DateRangePicker
+                startDate={ytdStartDate}
+                endDate={ytdEndDate}
+                onChange={(start, end) => {
+                  setYtdStartDate(start);
+                  setYtdEndDate(end);
+                }}
+                placeholder="Select date range for YTD"
+              />
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Revenue Breakdown Section */}
+      {(dailyBreakdown || weeklyBreakdown || dateRangeBreakdown) && (
+        <div className="card">
+          <div className="flex items-center gap-2 mb-4">
+            <DollarSign className="w-5 h-5 text-primary-600" />
+            <h2 className="text-xl font-semibold text-gray-900">
+              {viewType === 'DAY' ? 'Daily' : 'Weekly'} Revenue Breakdown
+            </h2>
+          </div>
+          {dailyBreakdown && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-4 bg-primary-50 rounded-lg">
+                <div>
+                  <p className="text-sm text-gray-600">Date</p>
+                  <p className="text-lg font-semibold text-gray-900">
+                    {new Date(dailyBreakdown.date).toLocaleDateString('en-US', {
+                      weekday: 'long',
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric',
+                    })}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm text-gray-600">Total Revenue</p>
+                  <p className="text-2xl font-bold text-primary-600">
+                    ${dailyBreakdown.totalRevenue.toLocaleString('en-US', {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}
+                  </p>
+                </div>
+              </div>
+              {dailyBreakdown.creatorBreakdown.length > 0 && (
+                <div>
+                  <h3 className="text-sm font-medium text-gray-700 mb-3">By Creator</h3>
+                  <div className="space-y-2">
+                    {dailyBreakdown.creatorBreakdown.map((creator, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                      >
+                        <span className="font-medium text-gray-900">{creator.name}</span>
+                        <span className="text-lg font-semibold text-gray-900">
+                          ${creator.revenue.toLocaleString('en-US', {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          })}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+          {weeklyBreakdown && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-4 bg-primary-50 rounded-lg">
+                <div>
+                  <p className="text-sm text-gray-600">Week</p>
+                  <p className="text-lg font-semibold text-gray-900">
+                    {new Date(weeklyBreakdown.weekStart).toLocaleDateString('en-US', {
+                      month: 'short',
+                      day: 'numeric',
+                    })}{' '}
+                    -{' '}
+                    {new Date(weeklyBreakdown.weekEnd).toLocaleDateString('en-US', {
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric',
+                    })}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm text-gray-600">Total Revenue</p>
+                  <p className="text-2xl font-bold text-primary-600">
+                    ${weeklyBreakdown.totalRevenue.toLocaleString('en-US', {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}
+                  </p>
+                </div>
+              </div>
+              {weeklyBreakdown.creatorBreakdown.length > 0 && (
+                <div>
+                  <h3 className="text-sm font-medium text-gray-700 mb-3">By Creator</h3>
+                  <div className="space-y-2">
+                    {weeklyBreakdown.creatorBreakdown.map((creator, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                      >
+                        <span className="font-medium text-gray-900">{creator.name}</span>
+                        <span className="text-lg font-semibold text-gray-900">
+                          ${creator.revenue.toLocaleString('en-US', {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          })}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+          {dateRangeBreakdown && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-4 bg-primary-50 rounded-lg">
+                <div>
+                  <p className="text-sm text-gray-600">Date Range</p>
+                  <p className="text-lg font-semibold text-gray-900">
+                    {new Date(dateRangeBreakdown.startDate).toLocaleDateString('en-US', {
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric',
+                    })}{' '}
+                    -{' '}
+                    {new Date(dateRangeBreakdown.endDate).toLocaleDateString('en-US', {
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric',
+                    })}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm text-gray-600">Total Revenue</p>
+                  <p className="text-2xl font-bold text-primary-600">
+                    ${dateRangeBreakdown.totalRevenue.toLocaleString('en-US', {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}
+                  </p>
+                </div>
+              </div>
+              {dateRangeBreakdown.creatorBreakdown.length > 0 && (
+                <div>
+                  <h3 className="text-sm font-medium text-gray-700 mb-3">By Creator</h3>
+                  <div className="space-y-2">
+                    {dateRangeBreakdown.creatorBreakdown.map((creator, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                      >
+                        <span className="font-medium text-gray-900">{creator.name}</span>
+                        <span className="text-lg font-semibold text-gray-900">
+                          ${creator.revenue.toLocaleString('en-US', {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          })}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Performance Indicators */}
       {performanceIndicators && (

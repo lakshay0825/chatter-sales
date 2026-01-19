@@ -64,6 +64,31 @@ export interface LeaderboardEntry {
   salesCount: number;
 }
 
+export interface CreatorBreakdown {
+  name: string;
+  revenue: number;
+}
+
+export interface DailyRevenueBreakdown {
+  date: string;
+  totalRevenue: number;
+  creatorBreakdown: CreatorBreakdown[];
+}
+
+export interface WeeklyRevenueBreakdown {
+  weekStart: string;
+  weekEnd: string;
+  totalRevenue: number;
+  creatorBreakdown: CreatorBreakdown[];
+}
+
+export interface DateRangeRevenueBreakdown {
+  startDate: string;
+  endDate: string;
+  totalRevenue: number;
+  creatorBreakdown: CreatorBreakdown[];
+}
+
 export const analyticsService = {
   /**
    * Get month-over-month comparison
@@ -140,6 +165,67 @@ export const analyticsService = {
     if (year) params.year = year;
 
     const response = await api.get<ApiResponse<LeaderboardEntry[]>>('/analytics/leaderboard', {
+      params,
+    });
+    return response.data.data!;
+  },
+
+  /**
+   * Get daily revenue breakdown with creator breakdown
+   */
+  async getDailyRevenueBreakdown(date?: Date, userId?: string): Promise<DailyRevenueBreakdown> {
+    const params: any = {};
+    if (date) params.date = date.toISOString().split('T')[0];
+    if (userId) params.userId = userId;
+
+    const response = await api.get<ApiResponse<DailyRevenueBreakdown>>('/analytics/revenue/daily', {
+      params,
+    });
+    return response.data.data!;
+  },
+
+  /**
+   * Get weekly revenue breakdown with creator breakdown (MON to SUN)
+   */
+  async getWeeklyRevenueBreakdown(weekStart?: Date, userId?: string): Promise<WeeklyRevenueBreakdown> {
+    const params: any = {};
+    if (weekStart) params.weekStart = weekStart.toISOString().split('T')[0];
+    if (userId) params.userId = userId;
+
+    const response = await api.get<ApiResponse<WeeklyRevenueBreakdown>>('/analytics/revenue/weekly', {
+      params,
+    });
+    return response.data.data!;
+  },
+
+  /**
+   * Get available years from sales data
+   */
+  async getAvailableYears(userId?: string): Promise<number[]> {
+    const params: any = {};
+    if (userId) params.userId = userId;
+
+    const response = await api.get<ApiResponse<number[]>>('/analytics/available-years', {
+      params,
+    });
+    return response.data.data!;
+  },
+
+  /**
+   * Get revenue breakdown for custom date range with creator breakdown
+   */
+  async getDateRangeRevenueBreakdown(
+    startDate: Date,
+    endDate: Date,
+    userId?: string
+  ): Promise<DateRangeRevenueBreakdown> {
+    const params: any = {
+      startDate: startDate.toISOString().split('T')[0],
+      endDate: endDate.toISOString().split('T')[0],
+    };
+    if (userId) params.userId = userId;
+
+    const response = await api.get<ApiResponse<DateRangeRevenueBreakdown>>('/analytics/revenue/date-range', {
       params,
     });
     return response.data.data!;

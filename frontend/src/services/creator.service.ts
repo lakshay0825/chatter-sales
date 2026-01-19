@@ -6,6 +6,7 @@ export interface CreateCreatorData {
   compensationType: 'PERCENTAGE' | 'SALARY';
   revenueSharePercent?: number;
   fixedSalaryCost?: number;
+  onlyfansCommissionPercent?: number;
 }
 
 export interface UpdateCreatorData {
@@ -13,6 +14,7 @@ export interface UpdateCreatorData {
   compensationType?: 'PERCENTAGE' | 'SALARY';
   revenueSharePercent?: number;
   fixedSalaryCost?: number;
+  onlyfansCommissionPercent?: number;
   isActive?: boolean;
 }
 

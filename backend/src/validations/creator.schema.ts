@@ -8,6 +8,7 @@ export const createCreatorSchema = z.object({
       compensationType: z.enum(['PERCENTAGE', 'SALARY']),
       revenueSharePercent: z.number().min(0).max(100).optional(),
       fixedSalaryCost: z.number().min(0).optional(),
+      onlyfansCommissionPercent: z.number().min(0).max(100).optional(), // 15 or 20
     })
     .refine(
       (data: {
@@ -43,6 +44,7 @@ export const updateCreatorSchema = z.object({
     compensationType: z.enum(['PERCENTAGE', 'SALARY']).optional(),
     revenueSharePercent: z.number().min(0).max(100).optional(),
     fixedSalaryCost: z.number().min(0).optional(),
+    onlyfansCommissionPercent: z.number().min(0).max(100).optional(), // 15 or 20
     isActive: z.boolean().optional(),
     avatar: z.string().optional(),
     identificationPhoto: z.string().optional(),

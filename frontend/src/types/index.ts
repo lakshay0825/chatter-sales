@@ -41,6 +41,7 @@ export interface Creator {
   compensationType: 'PERCENTAGE' | 'SALARY';
   revenueSharePercent?: number;
   fixedSalaryCost?: number;
+  onlyfansCommissionPercent?: number;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;

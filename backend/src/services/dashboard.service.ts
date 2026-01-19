@@ -251,6 +251,14 @@ export async function getAdminDashboard(month: number, year: number, cumulative:
         },
         select: {
           amount: true,
+          baseAmount: true,
+          userId: true,
+          user: {
+            select: {
+              commissionPercent: true,
+              fixedSalary: true,
+            },
+          },
         },
       },
     },
@@ -315,26 +323,43 @@ export async function getAdminDashboard(month: number, year: number, cumulative:
     // Calculate total sales amount for this creator in the selected period
     const totalSalesAmount = creator.sales.reduce((sum, sale) => sum + sale.amount, 0);
 
+    // Get OnlyFans commission percent (default to 20% if not set)
+    const onlyfansCommissionPercent = creator.onlyfansCommissionPercent ?? 20;
+    const onlyfansCommissionMultiplier = 1 - (onlyfansCommissionPercent / 100);
+    
+    // Calculate net revenue after OnlyFans commission
+    const netRevenueAfterOnlyFans = totalSalesAmount * onlyfansCommissionMultiplier;
+
     // Calculate creator earnings based on actual sales
-    // For PERCENTAGE: earnings = (total sales * percentage) / 100
-    // For SALARY: earnings = fixed salary cost
+    // For PERCENTAGE: earnings = (net revenue after OnlyFans * creator percentage) / 100
+    // For SALARY: earnings = fixed salary cost (net revenue after OnlyFans - fixed salary)
     let creatorEarnings = 0;
     if (creator.compensationType === 'PERCENTAGE' && creator.revenueSharePercent) {
-      creatorEarnings = (totalSalesAmount * creator.revenueSharePercent) / 100;
+      creatorEarnings = (netRevenueAfterOnlyFans * creator.revenueSharePercent) / 100;
     } else if (creator.compensationType === 'SALARY' && creator.fixedSalaryCost) {
       creatorEarnings = creator.fixedSalaryCost;
     }
 
-    // Calculate net revenue (total sales minus creator earnings only)
-    const netRevenue = totalSalesAmount - creatorEarnings;
+    // Calculate net revenue (net revenue after OnlyFans minus creator earnings)
+    const netRevenue = netRevenueAfterOnlyFans - creatorEarnings;
     
     // Calculate total custom costs
     const customCostsTotal = financial.customCosts 
       ? financial.customCosts.reduce((sum: number, cost: { name: string; amount: number }) => sum + (cost.amount || 0), 0)
       : 0;
     
-    // Calculate agency profit (net revenue minus all costs including custom costs)
-    const agencyProfit = netRevenue - financial.marketingCosts - financial.toolCosts - financial.otherCosts - customCostsTotal;
+    // Calculate chatter commissions for this creator's sales (only percentage-based, not fixed salary)
+    let chatterCommissions = 0;
+    for (const sale of creator.sales) {
+      if (sale.user && sale.user.commissionPercent) {
+        // Only count percentage-based commissions, not fixed salary
+        const saleAmountForCommission = sale.amount + (sale.baseAmount || 0);
+        chatterCommissions += (saleAmountForCommission * sale.user.commissionPercent) / 100;
+      }
+    }
+    
+    // Calculate agency profit (net revenue minus all costs including custom costs and chatter commissions)
+    const agencyProfit = netRevenue - financial.marketingCosts - financial.toolCosts - financial.otherCosts - customCostsTotal - chatterCommissions;
 
     return {
       creatorId: creator.id,

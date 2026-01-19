@@ -119,7 +119,7 @@ export default function DateRangePicker({
       </button>
 
       {isOpen && (
-        <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 p-4 min-w-[500px]">
+        <div className="absolute top-full left-0 right-0 sm:right-auto sm:left-[-95%] mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 p-4 w-full sm:w-auto sm:min-w-[500px] max-w-[calc(100vw-2rem)]">
           <div className="space-y-4">
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-sm font-medium text-gray-900">Select Date Range</h3>
@@ -132,7 +132,7 @@ export default function DateRangePicker({
               </button>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">Start Date</label>
                 <input
@@ -140,7 +140,7 @@ export default function DateRangePicker({
                   value={localStartDate}
                   onChange={(e) => handleStartDateChange(e.target.value)}
                   max={localEndDate || undefined}
-                  className="input text-sm"
+                  className="input text-sm w-full"
                 />
               </div>
               <div>
@@ -150,7 +150,7 @@ export default function DateRangePicker({
                   value={localEndDate}
                   onChange={(e) => handleEndDateChange(e.target.value)}
                   min={localStartDate || undefined}
-                  className="input text-sm"
+                  className="input text-sm w-full"
                 />
               </div>
             </div>
