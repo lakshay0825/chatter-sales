@@ -1,5 +1,5 @@
 import { prisma } from '../config/database';
-import { SaleStatus, UserRole } from '@prisma/client';
+import { SaleStatus, UserRole, SaleType } from '@prisma/client';
 import { NotFoundError, ForbiddenError } from '../utils/errors';
 import { CreateSaleInput, UpdateSaleInput, GetSalesQuery } from '../validations/sale.schema';
 import { isRealTimeSale, canEditSale } from '../utils/timezone';
@@ -21,13 +21,19 @@ export async function createSale(
     throw new NotFoundError('Creator not found');
   }
 
+  // Validate saleType is a valid enum value
+  if (!input.saleType || !Object.values(SaleType).includes(input.saleType)) {
+    const validTypes = Object.values(SaleType).join(', ');
+    throw new Error(`Invalid sale type. Received: "${input.saleType}". Must be one of: ${validTypes}`);
+  }
+
   // Determine sale date (use provided date or current time)
   const saleDate = input.saleDate || new Date();
   
   // Determine status (ONLINE if real-time, OFFLINE if backdated)
   const status = input.saleDate ? SaleStatus.OFFLINE : 
                  (isRealTimeSale(saleDate) ? SaleStatus.ONLINE : SaleStatus.OFFLINE);
-
+  console.log(input.saleType)
   const sale = await prisma.sale.create({
     data: {
       amount: input.amount,

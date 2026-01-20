@@ -84,6 +84,13 @@ export interface WeeklyRevenueBreakdown {
   creatorBreakdown: CreatorBreakdown[];
 }
 
+export interface MonthlyRevenueBreakdown {
+  month: number;
+  year: number;
+  totalRevenue: number;
+  creatorBreakdown: CreatorBreakdown[];
+}
+
 export interface DateRangeRevenueBreakdown {
   startDate: string;
   endDate: string;
@@ -217,6 +224,21 @@ export const analyticsService = {
     if (userId) params.userId = userId;
 
     const response = await api.get<ApiResponse<WeeklyRevenueBreakdown>>('/analytics/revenue/weekly', {
+      params,
+    });
+    return response.data.data!;
+  },
+
+  /**
+   * Get monthly revenue breakdown with creator breakdown
+   */
+  async getMonthlyRevenueBreakdown(month?: number, year?: number, userId?: string): Promise<MonthlyRevenueBreakdown> {
+    const params: any = {};
+    if (month) params.month = month.toString();
+    if (year) params.year = year.toString();
+    if (userId) params.userId = userId;
+
+    const response = await api.get<ApiResponse<MonthlyRevenueBreakdown>>('/analytics/revenue/monthly', {
       params,
     });
     return response.data.data!;

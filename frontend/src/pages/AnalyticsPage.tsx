@@ -2,13 +2,11 @@ import { useState, useEffect } from 'react';
 import {
   TrendingUp,
   BarChart3,
-  ArrowUpRight,
-  ArrowDownRight,
   Trophy,
   Target,
   DollarSign,
 } from 'lucide-react';
-import { analyticsService, DailyRevenueBreakdown, WeeklyRevenueBreakdown, DateRangeRevenueBreakdown } from '../services/analytics.service';
+import { analyticsService, DailyRevenueBreakdown, WeeklyRevenueBreakdown, MonthlyRevenueBreakdown, DateRangeRevenueBreakdown } from '../services/analytics.service';
 import { getCurrentMonthYear, getMonthName } from '../utils/date';
 import { useAuthStore } from '../store/authStore';
 import toast from 'react-hot-toast';
@@ -30,14 +28,12 @@ export default function AnalyticsPage() {
   const [availableYears, setAvailableYears] = useState<number[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Comparison data
-  const [momComparison, setMomComparison] = useState<any>(null);
-  const [yoyComparison, setYoyComparison] = useState<any>(null);
   const [trendData, setTrendData] = useState<any[]>([]);
   const [performanceIndicators, setPerformanceIndicators] = useState<any>(null);
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
   const [dailyBreakdown, setDailyBreakdown] = useState<DailyRevenueBreakdown | null>(null);
   const [weeklyBreakdown, setWeeklyBreakdown] = useState<WeeklyRevenueBreakdown | null>(null);
+  const [monthlyBreakdown, setMonthlyBreakdown] = useState<MonthlyRevenueBreakdown | null>(null);
   const [dateRangeBreakdown, setDateRangeBreakdown] = useState<DateRangeRevenueBreakdown | null>(null);
 
   useEffect(() => {
@@ -130,12 +126,9 @@ export default function AnalyticsPage() {
       } else if (viewType === 'WEEK') {
         promises.push(analyticsService.getWeeklyRevenueBreakdown(new Date(selectedDate), userId));
       } else if (viewType === 'MONTH') {
-        promises.push(
-          analyticsService.getMonthOverMonthComparison(selectedMonth, selectedYear, userId),
-          analyticsService.getYearOverYearComparison(selectedYear, userId)
-        );
+        promises.push(analyticsService.getMonthlyRevenueBreakdown(selectedMonth, selectedYear, userId));
       } else if (viewType === 'YTD') {
-        // For YTD, use custom date range if provided, otherwise use year comparison
+        // For YTD, use custom date range if provided
         if (ytdStartDate && ytdEndDate) {
           promises.push(
             analyticsService.getDateRangeRevenueBreakdown(
@@ -144,8 +137,6 @@ export default function AnalyticsPage() {
               userId
             )
           );
-        } else {
-          promises.push(analyticsService.getYearOverYearComparison(selectedYear, userId));
         }
       }
 
@@ -160,31 +151,30 @@ export default function AnalyticsPage() {
         const dailyData = results[resultIndex++];
         setDailyBreakdown(dailyData);
         setWeeklyBreakdown(null);
-        setMomComparison(null);
-        setYoyComparison(null);
+        setMonthlyBreakdown(null);
+        setDateRangeBreakdown(null);
       } else if (viewType === 'WEEK') {
         const weeklyData = results[resultIndex++];
         setWeeklyBreakdown(weeklyData);
         setDailyBreakdown(null);
-        setMomComparison(null);
-        setYoyComparison(null);
+        setMonthlyBreakdown(null);
+        setDateRangeBreakdown(null);
       } else if (viewType === 'MONTH') {
-        setMomComparison(results[resultIndex++]);
-        setYoyComparison(results[resultIndex++]);
+        const monthlyData = results[resultIndex++];
+        setMonthlyBreakdown(monthlyData);
         setDailyBreakdown(null);
         setWeeklyBreakdown(null);
+        setDateRangeBreakdown(null);
       } else if (viewType === 'YTD') {
         if (ytdStartDate && ytdEndDate) {
           const rangeData = results[resultIndex++];
           setDateRangeBreakdown(rangeData);
-          setYoyComparison(null);
         } else {
-          setYoyComparison(results[resultIndex++]);
           setDateRangeBreakdown(null);
         }
-        setMomComparison(null);
         setDailyBreakdown(null);
         setWeeklyBreakdown(null);
+        setMonthlyBreakdown(null);
       }
     } catch (error: any) {
       console.error('Failed to load analytics:', error);
@@ -280,12 +270,12 @@ export default function AnalyticsPage() {
       </div>
 
       {/* Revenue Breakdown Section */}
-      {(dailyBreakdown || weeklyBreakdown || dateRangeBreakdown) && (
+      {(dailyBreakdown || weeklyBreakdown || monthlyBreakdown || dateRangeBreakdown) && (
         <div className="card">
           <div className="flex items-center gap-2 mb-4">
             <DollarSign className="w-5 h-5 text-primary-600" />
             <h2 className="text-xl font-semibold text-gray-900">
-              {viewType === 'DAY' ? 'Daily' : 'Weekly'} Revenue Breakdown
+              {viewType === 'DAY' ? 'Daily' : viewType === 'WEEK' ? 'Weekly' : viewType === 'MONTH' ? 'Monthly' : 'Revenue'} Revenue Breakdown
             </h2>
           </div>
           {dailyBreakdown && (
@@ -368,6 +358,48 @@ export default function AnalyticsPage() {
                   <h3 className="text-sm font-medium text-gray-700 mb-3">By Creator</h3>
                   <div className="space-y-2">
                     {weeklyBreakdown.creatorBreakdown.map((creator, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                      >
+                        <span className="font-medium text-gray-900">{creator.name}</span>
+                        <span className="text-lg font-semibold text-gray-900">
+                          ${creator.revenue.toLocaleString('en-US', {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          })}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+          {monthlyBreakdown && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-4 bg-primary-50 rounded-lg">
+                <div>
+                  <p className="text-sm text-gray-600">Month</p>
+                  <p className="text-lg font-semibold text-gray-900">
+                    {getMonthName(monthlyBreakdown.month)} {monthlyBreakdown.year}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm text-gray-600">Total Revenue</p>
+                  <p className="text-2xl font-bold text-primary-600">
+                    ${monthlyBreakdown.totalRevenue.toLocaleString('en-US', {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}
+                  </p>
+                </div>
+              </div>
+              {monthlyBreakdown.creatorBreakdown.length > 0 && (
+                <div>
+                  <h3 className="text-sm font-medium text-gray-700 mb-3">By Creator</h3>
+                  <div className="space-y-2">
+                    {monthlyBreakdown.creatorBreakdown.map((creator, index) => (
                       <div
                         key={index}
                         className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
@@ -506,107 +538,6 @@ export default function AnalyticsPage() {
           </div>
         </div>
       )}
-
-      {/* Comparison Cards */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Month-over-Month Comparison */}
-        {momComparison && (
-          <div className="card">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">Month-over-Month Comparison</h2>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600">Current Month</p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    ${momComparison.current.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    {getMonthName(momComparison.current.month)} {momComparison.current.year}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">Previous Month</p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    ${momComparison.previous.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    {getMonthName(momComparison.previous.month)} {momComparison.previous.year}
-                  </p>
-                </div>
-              </div>
-              <div className="pt-4 border-t border-gray-200">
-                <div className="flex items-center gap-2">
-                  {momComparison.change.percent >= 0 ? (
-                    <ArrowUpRight className="w-5 h-5 text-green-600" />
-                  ) : (
-                    <ArrowDownRight className="w-5 h-5 text-red-600" />
-                  )}
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Change</p>
-                    <p
-                      className={`text-xl font-bold ${
-                        momComparison.change.percent >= 0 ? 'text-green-600' : 'text-red-600'
-                      }`}
-                    >
-                      {momComparison.change.percent >= 0 ? '+' : ''}
-                      {momComparison.change.percent.toFixed(1)}% (
-                      {momComparison.change.amount >= 0 ? '+' : ''}
-                      ${momComparison.change.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Year-over-Year Comparison */}
-        {yoyComparison && (
-          <div className="card">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">Year-over-Year Comparison</h2>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600">Current Year</p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    ${yoyComparison.current.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </p>
-                  <p className="text-xs text-gray-500">{yoyComparison.current.year}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">Previous Year</p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    ${yoyComparison.previous.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </p>
-                  <p className="text-xs text-gray-500">{yoyComparison.previous.year}</p>
-                </div>
-              </div>
-              <div className="pt-4 border-t border-gray-200">
-                <div className="flex items-center gap-2">
-                  {yoyComparison.change.percent >= 0 ? (
-                    <ArrowUpRight className="w-5 h-5 text-green-600" />
-                  ) : (
-                    <ArrowDownRight className="w-5 h-5 text-red-600" />
-                  )}
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Change</p>
-                    <p
-                      className={`text-xl font-bold ${
-                        yoyComparison.change.percent >= 0 ? 'text-green-600' : 'text-red-600'
-                      }`}
-                    >
-                      {yoyComparison.change.percent >= 0 ? '+' : ''}
-                      {yoyComparison.change.percent.toFixed(1)}% (
-                      {yoyComparison.change.amount >= 0 ? '+' : ''}
-                      ${yoyComparison.change.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
 
       {/* Trend Analysis Chart */}
       {trendData.length > 0 && (

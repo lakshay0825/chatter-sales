@@ -33,6 +33,7 @@ export interface AdminDashboardData {
     grossRevenue: number;
     totalSalesAmount: number;
     creatorEarnings: number;
+    chatterCommissions: number; // Chatter commissions for this creator
     marketingCosts: number;
     toolCosts: number;
     otherCosts: number;

@@ -530,11 +530,13 @@ export async function getWeeklyRevenueBreakdown(
   weekStartDate: Date,
   userId?: string
 ) {
-  // Ensure week starts on Monday
+  // Ensure week starts on Monday (using date-fns logic)
   const startDate = new Date(weekStartDate);
-  const dayOfWeek = startDate.getDay();
-  const diff = startDate.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1); // Adjust to Monday
-  startDate.setDate(diff);
+  const dayOfWeek = startDate.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+  // Calculate days to subtract to get to Monday (day 1)
+  // If Sunday (0), subtract 6 days; otherwise subtract (dayOfWeek - 1)
+  const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+  startDate.setDate(startDate.getDate() - daysToMonday);
   startDate.setHours(0, 0, 0, 0);
 
   const endDate = new Date(startDate);
@@ -628,6 +630,67 @@ export async function getAvailableYears(userId?: string) {
   }
 
   return years;
+}
+
+/**
+ * Get monthly revenue breakdown with creator breakdown
+ */
+export async function getMonthlyRevenueBreakdown(
+  month: number,
+  year: number,
+  userId?: string
+) {
+  const startDate = new Date(year, month - 1, 1);
+  startDate.setHours(0, 0, 0, 0);
+  const endDate = new Date(year, month, 0, 23, 59, 59, 999);
+
+  const whereClause: any = {
+    saleDate: {
+      gte: startDate,
+      lte: endDate,
+    },
+  };
+
+  if (userId) {
+    whereClause.userId = userId;
+  }
+
+  const sales = await prisma.sale.findMany({
+    where: whereClause,
+    include: {
+      creator: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
+    },
+  });
+
+  // Group by creator
+  const creatorBreakdown: { [key: string]: { name: string; revenue: number } } = {};
+  let totalRevenue = 0;
+
+  sales.forEach((sale) => {
+    // Total Revenue includes both amount and baseAmount (gross revenue)
+    const saleTotal = sale.amount + (sale.baseAmount || 0);
+    totalRevenue += saleTotal;
+    const creatorId = sale.creator.id;
+    if (!creatorBreakdown[creatorId]) {
+      creatorBreakdown[creatorId] = {
+        name: sale.creator.name,
+        revenue: 0,
+      };
+    }
+    creatorBreakdown[creatorId].revenue += saleTotal;
+  });
+
+  return {
+    month,
+    year,
+    totalRevenue,
+    creatorBreakdown: Object.values(creatorBreakdown),
+  };
 }
 
 /**

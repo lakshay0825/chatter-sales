@@ -284,6 +284,7 @@ export default function AdminDashboardPage() {
                 grossRevenue={creatorFinancial.grossRevenue}
                 totalSalesAmount={creatorFinancial.totalSalesAmount}
                 creatorEarnings={creatorFinancial.creatorEarnings}
+                chatterCommissions={creatorFinancial.chatterCommissions}
                 marketingCosts={creatorFinancial.marketingCosts}
                 toolCosts={creatorFinancial.toolCosts}
                 customCosts={creatorFinancial.customCosts}

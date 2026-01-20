@@ -7,16 +7,30 @@ export const createSaleSchema = z.object({
     creatorId: z.string().cuid('Invalid creator ID'),
     amount: z.number().min(0, 'Amount must be non-negative'),
     baseAmount: z.number().min(0).optional(), // BASE amount - optional, defaults to 0
-    saleType: z.nativeEnum(SaleType),
+    saleType: z.preprocess(
+      (val) => {
+        // Reject empty strings explicitly
+        if (val === '' || val === null || val === undefined) {
+          return undefined;
+        }
+        return val;
+      },
+      z.nativeEnum(SaleType, {
+        errorMap: () => ({ 
+          message: `Invalid sale type. Must be one of: ${Object.values(SaleType).join(', ')}` 
+        }),
+      })
+    ),
     note: z.string().optional(),
     saleDate: z.coerce.date().optional(), // Optional for backdating
   }).refine((data) => {
     // If saleType is BASE, amount can be 0, but baseAmount must be > 0
-    // Otherwise, amount must be > 0
+    // For MASS_MESSAGE and other types, amount must be > 0
     if (data.saleType === SaleType.BASE) {
       const baseAmountValue = data.baseAmount ?? 0;
       return (data.amount === 0 && baseAmountValue > 0) || data.amount > 0;
     }
+    // For all other types (including MASS_MESSAGE), amount must be > 0
     return data.amount > 0;
   }, {
     message: 'Amount must be positive, or if BASE type is selected, either amount or baseAmount must be positive',

@@ -370,6 +370,7 @@ export async function getAdminDashboard(month: number, year: number, cumulative:
       grossRevenue: financial.grossRevenue, // Keep manually entered gross revenue for display
       totalSalesAmount, // Add actual sales amount
       creatorEarnings,
+      chatterCommissions, // Add chatter commissions for this creator
       marketingCosts: financial.marketingCosts,
       toolCosts: financial.toolCosts,
       otherCosts: financial.otherCosts,

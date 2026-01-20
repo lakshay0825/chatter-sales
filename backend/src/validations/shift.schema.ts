@@ -5,8 +5,8 @@ export const createShiftSchema = z.object({
   body: z.object({
     userId: z.string().cuid('Invalid user ID'),
     date: z.coerce.date(),
-    startTime: z.enum(['09:00', '14:30', '20:00']),
-    endTime: z.enum(['14:30', '20:00', '01:00']),
+    startTime: z.enum(['09:00', '14:30', '20:00', '01:00']), // Added '01:00' for night shift
+    endTime: z.enum(['14:30', '20:00', '01:00', '09:00']), // Added '09:00' as end time for night shift
   }),
 });
 
@@ -20,8 +20,8 @@ export const updateShiftSchema = z.object({
   body: z.object({
     userId: z.string().cuid().optional(),
     date: z.coerce.date().optional(),
-    startTime: z.enum(['09:00', '14:30', '20:00']).optional(),
-    endTime: z.enum(['14:30', '20:00', '01:00']).optional(),
+    startTime: z.enum(['09:00', '14:30', '20:00', '01:00']).optional(), // Added '01:00' for night shift
+    endTime: z.enum(['14:30', '20:00', '01:00', '09:00']).optional(), // Added '09:00' as end time for night shift
   }),
 });
 

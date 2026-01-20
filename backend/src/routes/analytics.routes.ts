@@ -7,6 +7,7 @@ import {
   getLeaderboardHandler,
   getDailyRevenueBreakdownHandler,
   getWeeklyRevenueBreakdownHandler,
+  getMonthlyRevenueBreakdownHandler,
   getAvailableYearsHandler,
   getDateRangeRevenueBreakdownHandler,
 } from '../controllers/analytics.controller';
@@ -156,6 +157,27 @@ export async function analyticsRoutes(fastify: FastifyInstance) {
       },
     },
     getWeeklyRevenueBreakdownHandler
+  );
+
+  // Monthly revenue breakdown
+  fastify.get(
+    '/revenue/monthly',
+    {
+      schema: {
+        description: 'Get monthly revenue breakdown with creator breakdown',
+        tags: ['analytics'],
+        security: [{ bearerAuth: [] }],
+        querystring: {
+          type: 'object',
+          properties: {
+            month: { type: 'string' },
+            year: { type: 'string' },
+            userId: { type: 'string' },
+          },
+        },
+      },
+    },
+    getMonthlyRevenueBreakdownHandler
   );
 
   // Get available years

@@ -14,6 +14,7 @@ interface CreatorFinancialCardProps {
   grossRevenue: number;
   totalSalesAmount: number;
   creatorEarnings: number;
+  chatterCommissions: number; // Chatter commissions for this creator
   marketingCosts: number;
   toolCosts: number;
   customCosts?: Array<{ name: string; amount: number }>;
@@ -32,6 +33,7 @@ export default function CreatorFinancialCard({
   grossRevenue: initialGrossRevenue,
   totalSalesAmount,
   creatorEarnings, // Already calculated from totalSalesAmount in backend
+  chatterCommissions, // Chatter commissions for this creator
   marketingCosts: initialMarketingCosts,
   toolCosts: initialToolCosts,
   customCosts: initialCustomCosts = [],
@@ -171,16 +173,6 @@ export default function CreatorFinancialCard({
           </span>
         </div>
 
-        {/* Revenue */}
-        <div className="border-t border-gray-200 pt-3">
-          <div className="flex justify-between items-center">
-            <span className="text-sm text-gray-600">Revenue</span>
-            <span className="text-sm font-medium text-gray-900">
-              ${totalSalesAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            </span>
-          </div>
-        </div>
-
         {/* OnlyFans Commission */}
         <div className="flex justify-between items-center">
           <span className="text-sm text-gray-600">OnlyFans Commission</span>
@@ -201,6 +193,12 @@ export default function CreatorFinancialCard({
 
         {/* Costs */}
         <div className="space-y-2 pt-3 border-t border-gray-200">
+          <div className="flex justify-between items-center">
+            <span className="text-sm text-gray-600">Chatter Commissions</span>
+            <span className="text-sm font-medium text-red-600">
+              -${chatterCommissions.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </span>
+          </div>
           <div className="flex justify-between items-center">
             <span className="text-sm text-gray-600">Marketing Costs</span>
             {isEditing ? (
