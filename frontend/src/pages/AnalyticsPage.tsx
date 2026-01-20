@@ -79,11 +79,15 @@ export default function AnalyticsPage() {
       } else if (viewType === 'WEEK') {
         const date = new Date(selectedDate);
         startDate = startOfWeek(date, { weekStartsOn: 1 }); // Monday
+        startDate.setHours(0, 0, 0, 0);
         endDate = endOfWeek(date, { weekStartsOn: 1 }); // Sunday
+        endDate.setHours(23, 59, 59, 999);
       } else if (viewType === 'MONTH') {
         const monthDate = new Date(selectedYear, selectedMonth - 1, 1);
         startDate = startOfMonth(monthDate);
+        startDate.setHours(0, 0, 0, 0);
         endDate = endOfMonth(monthDate);
+        endDate.setHours(23, 59, 59, 999);
       } else if (viewType === 'YTD') {
         if (ytdStartDate && ytdEndDate) {
           startDate = new Date(ytdStartDate);
@@ -94,8 +98,21 @@ export default function AnalyticsPage() {
           // Default to full year
           const yearDate = new Date(selectedYear, 0, 1);
           startDate = startOfYear(yearDate);
+          startDate.setHours(0, 0, 0, 0);
           endDate = endOfYear(yearDate);
+          endDate.setHours(23, 59, 59, 999);
         }
+      }
+
+      // Ensure dates are always defined
+      if (!startDate || !endDate) {
+        console.error('Dates are undefined for viewType:', viewType);
+        // Fallback to current month
+        const now = new Date();
+        startDate = startOfMonth(now);
+        startDate.setHours(0, 0, 0, 0);
+        endDate = endOfMonth(now);
+        endDate.setHours(23, 59, 59, 999);
       }
 
       const promises: Promise<any>[] = [

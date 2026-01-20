@@ -420,7 +420,7 @@ export async function getChatterLeaderboardForDateRange(
   // Calculate totals and commissions for each chatter
   const leaderboard = chatters
     .map((chatter) => {
-      const salesTotal = chatter.sales.reduce((sum, sale) => sum + sale.amount, 0);
+      const salesTotal = chatter.sales.reduce((sum, sale) => sum + sale.amount + (sale.baseAmount || 0), 0);
       let commission = 0;
 
       if (chatter.commissionPercent) {
