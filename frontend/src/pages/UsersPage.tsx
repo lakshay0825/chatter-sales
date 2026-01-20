@@ -32,8 +32,10 @@ export default function UsersPage() {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [filterRole, setFilterRole] = useState<UserRole | ''>('');
   const [uploadingPhoto, setUploadingPhoto] = useState<string | null>(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState<string | null>(null);
   const [viewingPhoto, setViewingPhoto] = useState<{ url: string; name: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
 
   const isAdmin = user?.role === UserRole.ADMIN;
 
@@ -181,6 +183,13 @@ export default function UsersPage() {
     }
   };
 
+  const handleAvatarSelect = (userId: string) => {
+    if (avatarInputRef.current) {
+      avatarInputRef.current.setAttribute('data-user-id', userId);
+      avatarInputRef.current.click();
+    }
+  };
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     const userId = fileInputRef.current?.getAttribute('data-user-id');
@@ -214,6 +223,44 @@ export default function UsersPage() {
       setUploadingPhoto(null);
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
+      }
+      stopLoading();
+    }
+  };
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    const userId = avatarInputRef.current?.getAttribute('data-user-id');
+
+    if (!file || !userId) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select an image file');
+      return;
+    }
+
+    // Validate file size (5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('File size must be less than 5MB');
+      return;
+    }
+
+    setUploadingAvatar(userId);
+    startLoading('Uploading profile photo...');
+    try {
+      await uploadService.uploadUserAvatar(userId, file);
+      toast.success('Profile photo uploaded successfully');
+      loadUsers();
+    } catch (error: any) {
+      toast.error(getUserFriendlyError(error, { 
+        action: 'upload', 
+        entity: 'profile photo' 
+      }));
+    } finally {
+      setUploadingAvatar(null);
+      if (avatarInputRef.current) {
+        avatarInputRef.current.value = '';
       }
       stopLoading();
     }
@@ -319,13 +366,20 @@ export default function UsersPage() {
                           <img
                             src={u.avatar}
                             alt={u.name}
-                            className="w-10 h-10 rounded-full"
+                            className="w-10 h-10 rounded-full object-cover"
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement;
+                              target.style.display = 'none';
+                              const fallback = target.nextElementSibling as HTMLElement;
+                              if (fallback) fallback.style.display = 'flex';
+                            }}
                           />
-                        ) : (
-                          <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 font-medium">
-                            {u.name.charAt(0)}
-                          </div>
-                        )}
+                        ) : null}
+                        <div 
+                          className={`w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 font-medium ${u.avatar ? 'hidden' : ''}`}
+                        >
+                          {u.name.charAt(0)}
+                        </div>
                         <div>
                           <div className="text-sm font-medium text-gray-900">{u.name}</div>
                           <div className="text-xs text-gray-500">
@@ -364,6 +418,14 @@ export default function UsersPage() {
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleAvatarSelect(u.id)}
+                          disabled={uploadingAvatar === u.id}
+                          className="text-purple-600 hover:text-purple-700 disabled:opacity-50"
+                          title="Upload profile photo"
+                        >
+                          <Upload className="w-4 h-4" />
+                        </button>
                         {u.identificationPhoto && (
                           <button
                             onClick={() => setViewingPhoto({ url: u.identificationPhoto!, name: u.name })}
@@ -525,13 +587,22 @@ export default function UsersPage() {
         </>
       )}
 
-      {/* Hidden file input for photo upload */}
+      {/* Hidden file input for identification photo upload */}
       <input
         ref={fileInputRef}
         type="file"
         accept="image/jpeg,image/jpg,image/png,image/webp"
         className="hidden"
         onChange={handleFileUpload}
+      />
+
+      {/* Hidden file input for avatar/profile photo upload */}
+      <input
+        ref={avatarInputRef}
+        type="file"
+        accept="image/jpeg,image/jpg,image/png,image/webp"
+        className="hidden"
+        onChange={handleAvatarUpload}
       />
 
       {/* Photo Viewer Modal */}

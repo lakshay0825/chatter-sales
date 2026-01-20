@@ -15,6 +15,7 @@ const SHIFT_TIMES = {
   MORNING: { start: '09:00', end: '14:30', label: 'Mattina', color: 'bg-yellow-100 border-yellow-300' },
   AFTERNOON: { start: '14:30', end: '20:00', label: 'Pomeriggio', color: 'bg-green-100 border-green-300' },
   EVENING: { start: '20:00', end: '01:00', label: 'Sera', color: 'bg-purple-100 border-purple-300' },
+  NIGHT: { start: '01:00', end: '09:00', label: 'Notte', color: 'bg-blue-100 border-blue-300' },
 };
 
 type ShiftTimeKey = keyof typeof SHIFT_TIMES;

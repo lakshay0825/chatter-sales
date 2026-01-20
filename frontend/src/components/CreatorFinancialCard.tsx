@@ -16,7 +16,6 @@ interface CreatorFinancialCardProps {
   creatorEarnings: number;
   marketingCosts: number;
   toolCosts: number;
-  otherCosts: number;
   customCosts?: Array<{ name: string; amount: number }>;
   netRevenue: number;
   month: number;
@@ -35,7 +34,6 @@ export default function CreatorFinancialCard({
   creatorEarnings, // Already calculated from totalSalesAmount in backend
   marketingCosts: initialMarketingCosts,
   toolCosts: initialToolCosts,
-  otherCosts: initialOtherCosts,
   customCosts: initialCustomCosts = [],
   netRevenue: initialNetRevenue,
   month,
@@ -47,7 +45,6 @@ export default function CreatorFinancialCard({
   const [grossRevenue, setGrossRevenue] = useState(initialGrossRevenue);
   const [marketingCosts, setMarketingCosts] = useState(initialMarketingCosts);
   const [toolCosts, setToolCosts] = useState(initialToolCosts);
-  const [otherCosts, setOtherCosts] = useState(initialOtherCosts);
   const [customCosts, setCustomCosts] = useState<Array<{ name: string; amount: number }>>(initialCustomCosts || []);
 
   // Earnings are calculated from actual sales (totalSalesAmount), not from manually entered grossRevenue
@@ -55,7 +52,7 @@ export default function CreatorFinancialCard({
   // Calculate derived values based on actual sales
   const netRevenue = initialNetRevenue; // Already calculated from totalSalesAmount - creatorEarnings
   const customCostsTotal = customCosts.reduce((sum, cost) => sum + (cost.amount || 0), 0);
-  const agencyProfit = netRevenue - marketingCosts - toolCosts - otherCosts - customCostsTotal;
+  const agencyProfit = netRevenue - marketingCosts - toolCosts - customCostsTotal;
 
   const handleSave = async () => {
     setIsLoading(true);
@@ -69,8 +66,8 @@ export default function CreatorFinancialCard({
         grossRevenue,
         marketingCosts,
         toolCosts,
-        otherCosts,
-        customCosts: validCustomCosts.length > 0 ? validCustomCosts : undefined,
+        otherCosts: 0, // Always set to 0 since we removed this field
+        customCosts: validCustomCosts.length > 0 ? validCustomCosts : [],
       });
       toast.success('Financial data updated successfully');
       setIsEditing(false);
@@ -86,7 +83,6 @@ export default function CreatorFinancialCard({
     setGrossRevenue(initialGrossRevenue);
     setMarketingCosts(initialMarketingCosts);
     setToolCosts(initialToolCosts);
-    setOtherCosts(initialOtherCosts);
     setCustomCosts(initialCustomCosts || []);
     setIsEditing(false);
   };
@@ -175,23 +171,22 @@ export default function CreatorFinancialCard({
           </span>
         </div>
 
-        {/* Manual Gross Revenue (for reference) */}
-        <div className="flex justify-between items-center pt-2 border-t border-gray-100">
-          <span className="text-xs text-gray-500">Manual Gross Revenue (Reference)</span>
-          {isEditing ? (
-            <input
-              type="number"
-              value={grossRevenue}
-              onChange={(e) => setGrossRevenue(parseFloat(e.target.value) || 0)}
-              className="w-32 px-3 py-1 text-xs font-medium text-gray-600 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary-500"
-              step="0.01"
-              min="0"
-            />
-          ) : (
-            <span className="text-xs font-medium text-gray-500">
-              ${grossRevenue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+        {/* Revenue */}
+        <div className="border-t border-gray-200 pt-3">
+          <div className="flex justify-between items-center">
+            <span className="text-sm text-gray-600">Revenue</span>
+            <span className="text-sm font-medium text-gray-900">
+              ${totalSalesAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </span>
-          )}
+          </div>
+        </div>
+
+        {/* OnlyFans Commission */}
+        <div className="flex justify-between items-center">
+          <span className="text-sm text-gray-600">OnlyFans Commission</span>
+          <span className="text-sm font-medium text-red-600">
+            -${(totalSalesAmount - netRevenue - creatorEarnings).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </span>
         </div>
 
         {/* Net Revenue */}
@@ -224,7 +219,7 @@ export default function CreatorFinancialCard({
             )}
           </div>
           <div className="flex justify-between items-center">
-            <span className="text-sm text-gray-600">Tool Costs</span>
+            <span className="text-sm text-gray-600">Infloww Cost</span>
             {isEditing ? (
               <input
                 type="number"
@@ -237,23 +232,6 @@ export default function CreatorFinancialCard({
             ) : (
               <span className="text-sm font-medium text-red-600">
                 -${toolCosts.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </span>
-            )}
-          </div>
-          <div className="flex justify-between items-center">
-            <span className="text-sm text-gray-600">Other Costs</span>
-            {isEditing ? (
-              <input
-                type="number"
-                value={otherCosts}
-                onChange={(e) => setOtherCosts(parseFloat(e.target.value) || 0)}
-                className="w-32 px-3 py-1 text-sm font-medium text-red-600 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary-500"
-                step="0.01"
-                min="0"
-              />
-            ) : (
-              <span className="text-sm font-medium text-red-600">
-                -${otherCosts.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </span>
             )}
           </div>

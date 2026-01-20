@@ -23,6 +23,7 @@ enum SaleType {
   INITIAL
   CUSTOM
   BASE
+  MASS_MESSAGE
 }
 
 enum SaleStatus {

@@ -137,6 +137,151 @@ export async function getYearOverYearComparison(
 /**
  * Get trend analysis data (last 12 months)
  */
+/**
+ * Get trend analysis for a date range (for DAY, WEEK, YTD views)
+ */
+export async function getTrendAnalysisForDateRange(
+  startDate: Date,
+  endDate: Date,
+  viewType: 'DAY' | 'WEEK' | 'MONTH' | 'YTD',
+  userId?: string
+) {
+  const whereClause = userId ? { userId } : {};
+  const data: any[] = [];
+
+  if (viewType === 'DAY') {
+    // For day view, show hourly breakdown
+    const sales = await prisma.sale.findMany({
+      where: {
+        ...whereClause,
+        saleDate: {
+          gte: startDate,
+          lte: endDate,
+        },
+      },
+    });
+
+    // Group by hour
+    const hourlyData: { [key: number]: number } = {};
+    sales.forEach((sale) => {
+      const hour = new Date(sale.saleDate).getHours();
+      hourlyData[hour] = (hourlyData[hour] || 0) + sale.amount + (sale.baseAmount || 0);
+    });
+
+    for (let hour = 0; hour < 24; hour++) {
+      data.push({
+        label: `${hour}:00`,
+        amount: hourlyData[hour] || 0,
+        date: new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate(), hour),
+      });
+    }
+  } else if (viewType === 'WEEK') {
+    // For week view, show daily breakdown
+    const currentDate = new Date(startDate);
+    while (currentDate <= endDate) {
+      const dayStart = new Date(currentDate);
+      dayStart.setHours(0, 0, 0, 0);
+      const dayEnd = new Date(currentDate);
+      dayEnd.setHours(23, 59, 59, 999);
+
+      const sales = await prisma.sale.findMany({
+        where: {
+          ...whereClause,
+          saleDate: {
+            gte: dayStart,
+            lte: dayEnd,
+          },
+        },
+        select: {
+          amount: true,
+          baseAmount: true,
+        },
+      });
+
+      // Sum both amount and baseAmount
+      const totalAmount = sales.reduce((sum, sale) => sum + sale.amount + (sale.baseAmount || 0), 0);
+
+      data.push({
+        label: currentDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
+        amount: totalAmount,
+        date: new Date(currentDate),
+      });
+
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+  } else if (viewType === 'MONTH') {
+    // For month view, show daily breakdown
+    const currentDate = new Date(startDate);
+    while (currentDate <= endDate) {
+      const dayStart = new Date(currentDate);
+      dayStart.setHours(0, 0, 0, 0);
+      const dayEnd = new Date(currentDate);
+      dayEnd.setHours(23, 59, 59, 999);
+
+      const sales = await prisma.sale.findMany({
+        where: {
+          ...whereClause,
+          saleDate: {
+            gte: dayStart,
+            lte: dayEnd,
+          },
+        },
+        select: {
+          amount: true,
+          baseAmount: true,
+        },
+      });
+
+      // Sum both amount and baseAmount
+      const totalAmount = sales.reduce((sum, sale) => sum + sale.amount + (sale.baseAmount || 0), 0);
+
+      data.push({
+        label: currentDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        amount: totalAmount,
+        date: new Date(currentDate),
+      });
+
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+  } else if (viewType === 'YTD') {
+    // For YTD view, show monthly breakdown
+    const currentDate = new Date(startDate);
+    while (currentDate <= endDate) {
+      const month = currentDate.getMonth() + 1;
+      const year = currentDate.getFullYear();
+      const monthStart = new Date(year, month - 1, 1);
+      const monthEnd = new Date(year, month, 0, 23, 59, 59, 999);
+
+      const sales = await prisma.sale.findMany({
+        where: {
+          ...whereClause,
+          saleDate: {
+            gte: monthStart,
+            lte: monthEnd,
+          },
+        },
+        select: {
+          amount: true,
+          baseAmount: true,
+        },
+      });
+
+      // Sum both amount and baseAmount
+      const totalAmount = sales.reduce((sum, sale) => sum + sale.amount + (sale.baseAmount || 0), 0);
+
+      data.push({
+        label: `${currentDate.toLocaleString('default', { month: 'short' })} ${year}`,
+        amount: totalAmount,
+        date: new Date(year, month - 1, 1),
+      });
+
+      currentDate.setMonth(currentDate.getMonth() + 1);
+    }
+  }
+
+  return data;
+}
+
 export async function getTrendAnalysis(userId?: string) {
   const months = [];
   const currentDate = new Date();
@@ -169,10 +314,63 @@ export async function getTrendAnalysis(userId?: string) {
       amount: sales._sum.amount || 0,
       count: sales._count,
       label: `${date.toLocaleString('default', { month: 'short' })} ${year}`,
+      date: new Date(year, month - 1, 1),
     });
   }
 
   return months;
+}
+
+/**
+ * Get performance indicators for a date range
+ */
+export async function getPerformanceIndicatorsForDateRange(
+  startDate: Date,
+  endDate: Date,
+  userId?: string,
+  viewType?: 'DAY' | 'WEEK' | 'MONTH' | 'YTD'
+) {
+  const whereClause = userId ? { userId } : {};
+
+  const sales = await prisma.sale.findMany({
+    where: {
+      ...whereClause,
+      saleDate: {
+        gte: startDate,
+        lte: endDate,
+      },
+    },
+  });
+
+  // Total Sales includes both amount and baseAmount (like commission calculations)
+  const totalSales = sales.reduce((sum, sale) => sum + sale.amount + (sale.baseAmount || 0), 0);
+  // Average sale amount also includes baseAmount
+  const avgSaleAmount = sales.length > 0 ? totalSales / sales.length : 0;
+  const salesCount = sales.length;
+
+  // Calculate period length based on view type
+  let periodLength: number;
+  if (viewType === 'DAY') {
+    // For day view, use 24 hours
+    periodLength = 24;
+  } else {
+    // For week/month/YTD, use days
+    const timeDiff = endDate.getTime() - startDate.getTime();
+    periodLength = Math.ceil(timeDiff / (1000 * 60 * 60 * 24)) + 1; // +1 to include both start and end days
+  }
+
+  const avgDailySales = periodLength > 0 ? totalSales / periodLength : 0;
+  const avgSalesPerDay = periodLength > 0 ? salesCount / periodLength : 0;
+
+  return {
+    totalSales,
+    salesCount,
+    avgSaleAmount,
+    avgDailySales,
+    avgSalesPerDay,
+    daysInPeriod: viewType === 'DAY' ? 1 : periodLength,
+    daysInMonth: viewType === 'MONTH' ? periodLength : undefined,
+  };
 }
 
 /**
@@ -186,50 +384,25 @@ export async function getPerformanceIndicators(
   const startDate = new Date(year, month - 1, 1);
   const endDate = new Date(year, month, 0, 23, 59, 59, 999);
   const daysInMonth = new Date(year, month, 0).getDate();
-
-  const whereClause = userId ? { userId } : {};
-
-  const sales = await prisma.sale.findMany({
-    where: {
-      ...whereClause,
-      saleDate: {
-        gte: startDate,
-        lte: endDate,
-      },
-    },
-  });
-
-  const totalSales = sales.reduce((sum, sale) => sum + sale.amount, 0);
-  const avgSaleAmount = sales.length > 0 ? totalSales / sales.length : 0;
-  const avgDailySales = totalSales / daysInMonth;
-  const salesCount = sales.length;
-  const avgSalesPerDay = salesCount / daysInMonth;
-
+  const result = await getPerformanceIndicatorsForDateRange(startDate, endDate, userId);
   return {
-    totalSales,
-    salesCount,
-    avgSaleAmount,
-    avgDailySales,
-    avgSalesPerDay,
-    daysInMonth,
+    ...result,
+    daysInMonth, // Keep for backward compatibility
   };
 }
 
 /**
- * Get leaderboard/rankings for chatters
+ * Get leaderboard/rankings for chatters for a date range
  */
-export async function getChatterLeaderboard(
-  month: number,
-  year: number,
+export async function getChatterLeaderboardForDateRange(
+  startDate: Date,
+  endDate: Date,
   limit: number = 10
 ) {
-  const startDate = new Date(year, month - 1, 1);
-  const endDate = new Date(year, month, 0, 23, 59, 59, 999);
-
-  // Get all chatters with their sales totals
+  // Get all chatters and chatter managers with their sales totals
   const chatters = await prisma.user.findMany({
     where: {
-      role: 'CHATTER',
+      role: { in: ['CHATTER', 'CHATTER_MANAGER'] },
       isActive: true,
     },
     include: {
@@ -253,7 +426,11 @@ export async function getChatterLeaderboard(
       if (chatter.commissionPercent) {
         commission = (salesTotal * chatter.commissionPercent) / 100;
       } else if (chatter.fixedSalary) {
-        commission = chatter.fixedSalary;
+        // For fixed salary, calculate based on number of days in period
+        const timeDiff = endDate.getTime() - startDate.getTime();
+        const daysDiff = Math.ceil(timeDiff / (1000 * 60 * 60 * 24)) + 1;
+        const daysInMonth = 30; // Approximate
+        commission = (chatter.fixedSalary / daysInMonth) * daysDiff;
       }
 
       return {
@@ -273,6 +450,19 @@ export async function getChatterLeaderboard(
     }));
 
   return leaderboard;
+}
+
+/**
+ * Get leaderboard/rankings for chatters
+ */
+export async function getChatterLeaderboard(
+  month: number,
+  year: number,
+  limit: number = 10
+) {
+  const startDate = new Date(year, month - 1, 1);
+  const endDate = new Date(year, month, 0, 23, 59, 59, 999);
+  return getChatterLeaderboardForDateRange(startDate, endDate, limit);
 }
 
 /**
@@ -379,7 +569,9 @@ export async function getWeeklyRevenueBreakdown(
   let totalRevenue = 0;
 
   sales.forEach((sale) => {
-    totalRevenue += sale.amount;
+    // Total Revenue includes both amount and baseAmount (gross revenue)
+    const saleTotal = sale.amount + (sale.baseAmount || 0);
+    totalRevenue += saleTotal;
     const creatorId = sale.creator.id;
     if (!creatorBreakdown[creatorId]) {
       creatorBreakdown[creatorId] = {
@@ -387,7 +579,7 @@ export async function getWeeklyRevenueBreakdown(
         revenue: 0,
       };
     }
-    creatorBreakdown[creatorId].revenue += sale.amount;
+    creatorBreakdown[creatorId].revenue += saleTotal;
   });
 
   return {
@@ -479,7 +671,9 @@ export async function getDateRangeRevenueBreakdown(
   let totalRevenue = 0;
 
   sales.forEach((sale) => {
-    totalRevenue += sale.amount;
+    // Total Revenue includes both amount and baseAmount (gross revenue)
+    const saleTotal = sale.amount + (sale.baseAmount || 0);
+    totalRevenue += saleTotal;
     const creatorId = sale.creator.id;
     if (!creatorBreakdown[creatorId]) {
       creatorBreakdown[creatorId] = {
@@ -487,7 +681,7 @@ export async function getDateRangeRevenueBreakdown(
         revenue: 0,
       };
     }
-    creatorBreakdown[creatorId].revenue += sale.amount;
+    creatorBreakdown[creatorId].revenue += saleTotal;
   });
 
   return {

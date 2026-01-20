@@ -286,7 +286,6 @@ export default function AdminDashboardPage() {
                 creatorEarnings={creatorFinancial.creatorEarnings}
                 marketingCosts={creatorFinancial.marketingCosts}
                 toolCosts={creatorFinancial.toolCosts}
-                otherCosts={creatorFinancial.otherCosts}
                 customCosts={creatorFinancial.customCosts}
                 netRevenue={creatorFinancial.netRevenue}
                 month={selectedMonth}

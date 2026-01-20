@@ -441,7 +441,22 @@ export default function SalesPage() {
                         <div className="flex items-center gap-2">
                           {sale.user?.name && (
                             <>
-                              <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 font-medium text-xs">
+                              {sale.user.avatar ? (
+                                <img 
+                                  src={sale.user.avatar} 
+                                  alt={sale.user.name} 
+                                  className="w-8 h-8 rounded-full object-cover"
+                                  onError={(e) => {
+                                    const target = e.target as HTMLImageElement;
+                                    target.style.display = 'none';
+                                    const fallback = target.nextElementSibling as HTMLElement;
+                                    if (fallback) fallback.style.display = 'flex';
+                                  }}
+                                />
+                              ) : null}
+                              <div 
+                                className={`w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 font-medium text-xs ${sale.user?.avatar ? 'hidden' : ''}`}
+                              >
                                 {sale.user.name.charAt(0)}
                               </div>
                               <span className="text-sm text-gray-900">{sale.user.name}</span>
@@ -465,7 +480,22 @@ export default function SalesPage() {
                         <div className="flex items-center gap-2">
                           {sale.creator?.name && (
                             <>
-                              <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center text-purple-700 font-medium text-xs">
+                              {sale.creator?.avatar ? (
+                                <img 
+                                  src={sale.creator.avatar} 
+                                  alt={sale.creator.name} 
+                                  className="w-8 h-8 rounded-full object-cover"
+                                  onError={(e) => {
+                                    const target = e.target as HTMLImageElement;
+                                    target.style.display = 'none';
+                                    const fallback = target.nextElementSibling as HTMLElement;
+                                    if (fallback) fallback.style.display = 'flex';
+                                  }}
+                                />
+                              ) : null}
+                              <div 
+                                className={`w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center text-purple-700 font-medium text-xs ${sale.creator?.avatar ? 'hidden' : ''}`}
+                              >
                                 {sale.creator.name.charAt(0)}
                               </div>
                               <span className="text-sm text-gray-900">{sale.creator.name}</span>

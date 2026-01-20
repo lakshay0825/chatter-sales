@@ -11,6 +11,7 @@ export enum SaleType {
   INITIAL = 'INITIAL',
   CUSTOM = 'CUSTOM',
   BASE = 'BASE',
+  MASS_MESSAGE = 'MASS_MESSAGE',
 }
 
 export enum SaleStatus {
@@ -62,10 +63,12 @@ export interface Sale {
     id: string;
     name: string;
     email: string;
+    avatar?: string;
   };
   creator?: {
     id: string;
     name: string;
+    avatar?: string;
   };
 }
 

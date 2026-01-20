@@ -21,11 +21,15 @@ const updateSaleSchema = z.object({
   userId: z.string().optional(),
 }).refine((data) => {
   // If saleType is BASE, amount can be 0, but baseAmount must be > 0
-  // Otherwise, amount must be > 0
-  if (data.saleType === SaleType.BASE) {
-    return (data.amount === 0 && (data.baseAmount || 0) > 0) || data.amount > 0;
+  // Otherwise, if amount is provided, it must be > 0
+  if (data.saleType === SaleType.BASE && data.amount !== undefined) {
+    const baseAmountValue = data.baseAmount ?? 0;
+    return (data.amount === 0 && baseAmountValue > 0) || data.amount > 0;
   }
-  return data.amount > 0;
+  if (data.amount !== undefined) {
+    return data.amount > 0;
+  }
+  return true;
 }, {
   message: 'Amount must be positive, or if BASE type is selected, either amount or baseAmount must be positive',
   path: ['amount'],
@@ -99,8 +103,11 @@ export default function EditSaleModal({
   const loadUsers = async () => {
     try {
       const { userService } = await import('../services/user.service');
-      const data = await userService.getUsers({ role: UserRole.CHATTER });
-      setUsers(data);
+      const data = await userService.getUsers({ 
+        role: UserRole.CHATTER,
+        isActive: true 
+      });
+      setUsers(data.filter(u => u.isActive));
     } catch (error) {
       // Silently fail
     }
@@ -201,12 +208,13 @@ export default function EditSaleModal({
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Sale Type</label>
             <select {...register('saleType')} className="input" disabled={!canEdit}>
+              <option value={SaleType.PPV}>PPV</option>
               <option value={SaleType.CAM}>CAM</option>
               <option value={SaleType.TIP}>TIP</option>
-              <option value={SaleType.PPV}>PPV</option>
               <option value={SaleType.INITIAL}>INITIAL</option>
               <option value={SaleType.CUSTOM}>CUSTOM</option>
               <option value={SaleType.BASE}>BASE</option>
+              <option value={SaleType.MASS_MESSAGE}>MASS MESSAGE</option>
             </select>
             {errors.saleType && (
               <p className="mt-1 text-sm text-red-600">{errors.saleType.message}</p>

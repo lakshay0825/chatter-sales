@@ -15,6 +15,7 @@ import toast from 'react-hot-toast';
 import { getUserFriendlyError } from '../utils/errorHandler';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import DateRangePicker from '../components/DateRangePicker';
+import { startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear } from 'date-fns';
 
 type ViewType = 'DAY' | 'WEEK' | 'MONTH' | 'YTD';
 
@@ -69,10 +70,58 @@ export default function AnalyticsPage() {
     try {
       const userId = user?.role === 'CHATTER' ? user.id : undefined;
 
+      // Calculate date range based on viewType
+      let startDate: Date | undefined;
+      let endDate: Date | undefined;
+
+      if (viewType === 'DAY') {
+        const date = new Date(selectedDate);
+        startDate = new Date(date);
+        startDate.setHours(0, 0, 0, 0);
+        endDate = new Date(date);
+        endDate.setHours(23, 59, 59, 999);
+      } else if (viewType === 'WEEK') {
+        const date = new Date(selectedDate);
+        startDate = startOfWeek(date, { weekStartsOn: 1 }); // Monday
+        endDate = endOfWeek(date, { weekStartsOn: 1 }); // Sunday
+      } else if (viewType === 'MONTH') {
+        const monthDate = new Date(selectedYear, selectedMonth - 1, 1);
+        startDate = startOfMonth(monthDate);
+        endDate = endOfMonth(monthDate);
+      } else if (viewType === 'YTD') {
+        if (ytdStartDate && ytdEndDate) {
+          startDate = new Date(ytdStartDate);
+          startDate.setHours(0, 0, 0, 0);
+          endDate = new Date(ytdEndDate);
+          endDate.setHours(23, 59, 59, 999);
+        } else {
+          // Default to full year
+          const yearDate = new Date(selectedYear, 0, 1);
+          startDate = startOfYear(yearDate);
+          endDate = endOfYear(yearDate);
+        }
+      }
+
       const promises: Promise<any>[] = [
-        analyticsService.getTrendAnalysis(userId),
-        analyticsService.getPerformanceIndicators(selectedMonth, selectedYear, userId),
-        analyticsService.getLeaderboard(selectedMonth, selectedYear, 10),
+        // Trend analysis with date range
+        analyticsService.getTrendAnalysis(userId, startDate, endDate, viewType),
+        // Performance indicators with date range
+        analyticsService.getPerformanceIndicators(
+          viewType === 'MONTH' ? selectedMonth : undefined,
+          viewType === 'MONTH' || viewType === 'YTD' ? selectedYear : undefined,
+          userId,
+          startDate,
+          endDate,
+          viewType
+        ),
+        // Leaderboard with date range
+        analyticsService.getLeaderboard(
+          viewType === 'MONTH' ? selectedMonth : undefined,
+          viewType === 'MONTH' || viewType === 'YTD' ? selectedYear : undefined,
+          10,
+          startDate,
+          endDate
+        ),
       ];
 
       // Load view-specific data
@@ -108,12 +157,14 @@ export default function AnalyticsPage() {
       setLeaderboard(results[resultIndex++]);
 
       if (viewType === 'DAY') {
-        setDailyBreakdown(results[resultIndex++]);
+        const dailyData = results[resultIndex++];
+        setDailyBreakdown(dailyData);
         setWeeklyBreakdown(null);
         setMomComparison(null);
         setYoyComparison(null);
       } else if (viewType === 'WEEK') {
-        setWeeklyBreakdown(results[resultIndex++]);
+        const weeklyData = results[resultIndex++];
+        setWeeklyBreakdown(weeklyData);
         setDailyBreakdown(null);
         setMomComparison(null);
         setYoyComparison(null);
@@ -124,7 +175,8 @@ export default function AnalyticsPage() {
         setWeeklyBreakdown(null);
       } else if (viewType === 'YTD') {
         if (ytdStartDate && ytdEndDate) {
-          setDateRangeBreakdown(results[resultIndex++]);
+          const rangeData = results[resultIndex++];
+          setDateRangeBreakdown(rangeData);
           setYoyComparison(null);
         } else {
           setYoyComparison(results[resultIndex++]);
@@ -389,6 +441,7 @@ export default function AnalyticsPage() {
         </div>
       )}
 
+
       {/* Performance Indicators */}
       {performanceIndicators && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -424,11 +477,15 @@ export default function AnalyticsPage() {
                 <BarChart3 className="w-5 h-5 text-white" />
               </div>
             </div>
-            <h3 className="text-sm font-medium text-gray-600 mb-1">Avg Daily Sales</h3>
+            <h3 className="text-sm font-medium text-gray-600 mb-1">
+              {viewType === 'DAY' ? 'Avg Hourly Sales' : 'Avg Daily Sales'}
+            </h3>
             <p className="text-2xl font-bold text-gray-900">
               ${performanceIndicators.avgDailySales.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </p>
-            <p className="text-xs text-gray-500 mt-1">Per day</p>
+            <p className="text-xs text-gray-500 mt-1">
+              {viewType === 'DAY' ? 'Per hour' : 'Per day'}
+            </p>
           </div>
 
           <div className="card">
@@ -437,11 +494,15 @@ export default function AnalyticsPage() {
                 <Target className="w-5 h-5 text-white" />
               </div>
             </div>
-            <h3 className="text-sm font-medium text-gray-600 mb-1">Avg Sales/Day</h3>
+            <h3 className="text-sm font-medium text-gray-600 mb-1">
+              {viewType === 'DAY' ? 'Sales/Hour' : 'Sales/Day'}
+            </h3>
             <p className="text-2xl font-bold text-gray-900">
               {performanceIndicators.avgSalesPerDay.toFixed(1)}
             </p>
-            <p className="text-xs text-gray-500 mt-1">Transactions per day</p>
+            <p className="text-xs text-gray-500 mt-1">
+              {viewType === 'DAY' ? 'Transactions per hour' : 'Transactions per day'}
+            </p>
           </div>
         </div>
       )}
@@ -550,7 +611,13 @@ export default function AnalyticsPage() {
       {/* Trend Analysis Chart */}
       {trendData.length > 0 && (
         <div className="card">
-          <h2 className="text-xl font-semibold text-gray-900 mb-6">12-Month Trend Analysis</h2>
+          <h2 className="text-xl font-semibold text-gray-900 mb-6">
+            {viewType === 'DAY' ? 'Daily Trend Analysis' :
+             viewType === 'WEEK' ? 'Weekly Trend Analysis' :
+             viewType === 'MONTH' ? 'Monthly Trend Analysis' :
+             viewType === 'YTD' ? 'Year-to-Date Trend Analysis' :
+             '12-Month Trend Analysis'}
+          </h2>
           <ResponsiveContainer width="100%" height={300}>
             <LineChart data={trendData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />

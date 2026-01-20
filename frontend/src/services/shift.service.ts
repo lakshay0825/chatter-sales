@@ -4,15 +4,15 @@ import { ApiResponse, Shift } from '../types';
 export interface CreateShiftData {
   userId: string;
   date: string;
-  startTime: '09:00' | '14:30' | '20:00';
-  endTime: '14:30' | '20:00' | '01:00';
+  startTime: '09:00' | '14:30' | '20:00' | '01:00';
+  endTime: '14:30' | '20:00' | '01:00' | '09:00';
 }
 
 export interface UpdateShiftData {
   userId?: string;
   date?: string;
-  startTime?: '09:00' | '14:30' | '20:00';
-  endTime?: '14:30' | '20:00' | '01:00';
+  startTime?: '09:00' | '14:30' | '20:00' | '01:00';
+  endTime?: '14:30' | '20:00' | '01:00' | '09:00';
 }
 
 export interface GetShiftsParams {

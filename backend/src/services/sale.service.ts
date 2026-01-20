@@ -45,12 +45,14 @@ export async function createSale(
           id: true,
           name: true,
           email: true,
+          avatar: true,
         },
       },
       creator: {
         select: {
           id: true,
           name: true,
+          avatar: true,
         },
       },
     },
@@ -71,12 +73,14 @@ export async function getSaleById(saleId: string, userRole: UserRole, userId: st
           id: true,
           name: true,
           email: true,
+          avatar: true,
         },
       },
       creator: {
         select: {
           id: true,
           name: true,
+          avatar: true,
         },
       },
     },
@@ -147,12 +151,14 @@ export async function getSales(
             id: true,
             name: true,
             email: true,
+            avatar: true,
           },
         },
         creator: {
           select: {
             id: true,
             name: true,
+            avatar: true,
           },
         },
       },
@@ -246,12 +252,14 @@ export async function updateSale(
           id: true,
           name: true,
           email: true,
+          avatar: true,
         },
       },
       creator: {
         select: {
           id: true,
           name: true,
+          avatar: true,
         },
       },
     },

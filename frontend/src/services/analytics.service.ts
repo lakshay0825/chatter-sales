@@ -38,11 +38,12 @@ export interface YearOverYearComparison {
 }
 
 export interface TrendData {
-  month: number;
-  year: number;
+  month?: number;
+  year?: number;
   amount: number;
-  count: number;
+  count?: number;
   label: string;
+  date?: Date | string;
 }
 
 export interface PerformanceIndicators {
@@ -51,7 +52,8 @@ export interface PerformanceIndicators {
   avgSaleAmount: number;
   avgDailySales: number;
   avgSalesPerDay: number;
-  daysInMonth: number;
+  daysInMonth?: number;
+  daysInPeriod?: number;
 }
 
 export interface LeaderboardEntry {
@@ -126,11 +128,19 @@ export const analyticsService = {
   },
 
   /**
-   * Get trend analysis (last 12 months)
+   * Get trend analysis (last 12 months or date range)
    */
-  async getTrendAnalysis(userId?: string): Promise<TrendData[]> {
+  async getTrendAnalysis(
+    userId?: string,
+    startDate?: Date,
+    endDate?: Date,
+    viewType?: 'DAY' | 'WEEK' | 'MONTH' | 'YTD'
+  ): Promise<TrendData[]> {
     const params: any = {};
     if (userId) params.userId = userId;
+    if (startDate) params.startDate = startDate.toISOString().split('T')[0];
+    if (endDate) params.endDate = endDate.toISOString().split('T')[0];
+    if (viewType) params.viewType = viewType;
 
     const response = await api.get<ApiResponse<TrendData[]>>('/analytics/trends', { params });
     return response.data.data!;
@@ -142,12 +152,18 @@ export const analyticsService = {
   async getPerformanceIndicators(
     month?: number,
     year?: number,
-    userId?: string
+    userId?: string,
+    startDate?: Date,
+    endDate?: Date,
+    viewType?: 'DAY' | 'WEEK' | 'MONTH' | 'YTD'
   ): Promise<PerformanceIndicators> {
     const params: any = {};
     if (month) params.month = month;
     if (year) params.year = year;
     if (userId) params.userId = userId;
+    if (startDate) params.startDate = startDate.toISOString().split('T')[0];
+    if (endDate) params.endDate = endDate.toISOString().split('T')[0];
+    if (viewType) params.viewType = viewType;
 
     const response = await api.get<ApiResponse<PerformanceIndicators>>(
       '/analytics/performance-indicators',
@@ -159,10 +175,18 @@ export const analyticsService = {
   /**
    * Get leaderboard
    */
-  async getLeaderboard(month?: number, year?: number, limit: number = 10): Promise<LeaderboardEntry[]> {
+  async getLeaderboard(
+    month?: number,
+    year?: number,
+    limit: number = 10,
+    startDate?: Date,
+    endDate?: Date
+  ): Promise<LeaderboardEntry[]> {
     const params: any = { limit };
     if (month) params.month = month;
     if (year) params.year = year;
+    if (startDate) params.startDate = startDate.toISOString().split('T')[0];
+    if (endDate) params.endDate = endDate.toISOString().split('T')[0];
 
     const response = await api.get<ApiResponse<LeaderboardEntry[]>>('/analytics/leaderboard', {
       params,

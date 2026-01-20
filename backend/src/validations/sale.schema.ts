@@ -14,7 +14,8 @@ export const createSaleSchema = z.object({
     // If saleType is BASE, amount can be 0, but baseAmount must be > 0
     // Otherwise, amount must be > 0
     if (data.saleType === SaleType.BASE) {
-      return (data.amount === 0 && (data.baseAmount || 0) > 0) || data.amount > 0;
+      const baseAmountValue = data.baseAmount ?? 0;
+      return (data.amount === 0 && baseAmountValue > 0) || data.amount > 0;
     }
     return data.amount > 0;
   }, {
@@ -42,7 +43,8 @@ export const updateSaleSchema = z.object({
     // If saleType is BASE, amount can be 0, but baseAmount must be > 0
     // Otherwise, if amount is provided, it must be > 0
     if (data.saleType === SaleType.BASE && data.amount !== undefined) {
-      return (data.amount === 0 && (data.baseAmount || 0) > 0) || data.amount > 0;
+      const baseAmountValue = data.baseAmount ?? 0;
+      return (data.amount === 0 && baseAmountValue > 0) || data.amount > 0;
     }
     if (data.amount !== undefined) {
       return data.amount > 0;

@@ -21,7 +21,8 @@ const saleSchema = z.object({
   // If saleType is BASE, amount can be 0, but baseAmount must be > 0
   // Otherwise, amount must be > 0
   if (data.saleType === SaleType.BASE) {
-    return (data.amount === 0 && (data.baseAmount || 0) > 0) || data.amount > 0;
+    const baseAmountValue = data.baseAmount ?? 0;
+    return (data.amount === 0 && baseAmountValue > 0) || data.amount > 0;
   }
   return data.amount > 0;
 }, {
@@ -54,7 +55,7 @@ export default function SaleEntryModal({ isOpen, onClose, onSuccess }: SaleEntry
   } = useForm<SaleFormData>({
     resolver: zodResolver(saleSchema),
     defaultValues: {
-      saleType: SaleType.CAM,
+      saleType: SaleType.PPV,
     },
   });
 
@@ -68,7 +69,7 @@ export default function SaleEntryModal({ isOpen, onClose, onSuccess }: SaleEntry
         creatorId: '',
         amount: undefined as unknown as number,
         baseAmount: undefined as unknown as number,
-        saleType: SaleType.CAM,
+        saleType: SaleType.PPV,
         note: '',
         saleDate: undefined,
       });
@@ -220,12 +221,13 @@ export default function SaleEntryModal({ isOpen, onClose, onSuccess }: SaleEntry
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Sale Type</label>
             <select {...register('saleType')} className="input">
+              <option value={SaleType.PPV}>PPV</option>
               <option value={SaleType.CAM}>CAM</option>
               <option value={SaleType.TIP}>TIP</option>
-              <option value={SaleType.PPV}>PPV</option>
               <option value={SaleType.INITIAL}>INITIAL</option>
               <option value={SaleType.CUSTOM}>CUSTOM</option>
               <option value={SaleType.BASE}>BASE</option>
+              <option value={SaleType.MASS_MESSAGE}>MASS MESSAGE</option>
             </select>
             {errors.saleType && (
               <p className="mt-1 text-sm text-red-600">{errors.saleType.message}</p>
