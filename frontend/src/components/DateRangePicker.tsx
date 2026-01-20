@@ -119,7 +119,7 @@ export default function DateRangePicker({
       </button>
 
       {isOpen && (
-        <div className="absolute top-full left-0 right-0 sm:right-auto sm:left-[-95%] mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 p-4 w-full sm:w-auto sm:min-w-[500px] max-w-[calc(100vw-2rem)]">
+        <div className="absolute top-full left-0 right-0 sm:right-auto sm:left-[-30%] mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 p-4 w-full sm:w-auto sm:min-w-[500px] max-w-[calc(100vw-2rem)]">
           <div className="space-y-4">
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-sm font-medium text-gray-900">Select Date Range</h3>

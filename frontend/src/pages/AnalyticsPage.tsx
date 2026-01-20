@@ -124,16 +124,30 @@ export default function AnalyticsPage() {
       if (viewType === 'DAY') {
         promises.push(analyticsService.getDailyRevenueBreakdown(new Date(selectedDate), userId));
       } else if (viewType === 'WEEK') {
-        promises.push(analyticsService.getWeeklyRevenueBreakdown(new Date(selectedDate), userId));
+        // Ensure week starts on Monday when calling the API
+        const weekDate = new Date(selectedDate);
+        const weekStartDate = startOfWeek(weekDate, { weekStartsOn: 1 }); // Monday
+        promises.push(analyticsService.getWeeklyRevenueBreakdown(weekStartDate, userId));
       } else if (viewType === 'MONTH') {
         promises.push(analyticsService.getMonthlyRevenueBreakdown(selectedMonth, selectedYear, userId));
       } else if (viewType === 'YTD') {
-        // For YTD, use custom date range if provided
+        // For YTD, use custom date range if provided, otherwise use full year
         if (ytdStartDate && ytdEndDate) {
           promises.push(
             analyticsService.getDateRangeRevenueBreakdown(
               new Date(ytdStartDate),
               new Date(ytdEndDate),
+              userId
+            )
+          );
+        } else {
+          // Default to full year breakdown
+          const yearStart = new Date(selectedYear, 0, 1);
+          const yearEnd = new Date(selectedYear, 11, 31, 23, 59, 59, 999);
+          promises.push(
+            analyticsService.getDateRangeRevenueBreakdown(
+              yearStart,
+              yearEnd,
               userId
             )
           );
@@ -166,12 +180,8 @@ export default function AnalyticsPage() {
         setWeeklyBreakdown(null);
         setDateRangeBreakdown(null);
       } else if (viewType === 'YTD') {
-        if (ytdStartDate && ytdEndDate) {
-          const rangeData = results[resultIndex++];
-          setDateRangeBreakdown(rangeData);
-        } else {
-          setDateRangeBreakdown(null);
-        }
+        const rangeData = results[resultIndex++];
+        setDateRangeBreakdown(rangeData);
         setDailyBreakdown(null);
         setWeeklyBreakdown(null);
         setMonthlyBreakdown(null);
@@ -205,17 +215,6 @@ export default function AnalyticsPage() {
           <p className="text-sm text-gray-600 mt-1">Performance comparisons, trends, and leaderboards</p>
         </div>
         <div className="flex items-center gap-3 flex-wrap w-full sm:w-auto">
-          {/* View Type Selector */}
-          <select
-            value={viewType}
-            onChange={(e) => setViewType(e.target.value as ViewType)}
-            className="input w-full sm:w-auto sm:min-w-[120px]"
-          >
-            <option value="DAY">Day</option>
-            <option value="WEEK">Week</option>
-            <option value="MONTH">Month</option>
-            <option value="YTD">YTD</option>
-          </select>
 
           {/* Date/Time Selector based on view type */}
           {viewType === 'DAY' && (
@@ -266,6 +265,20 @@ export default function AnalyticsPage() {
               />
             </div>
           )}
+          
+          {/* View Type Selector */}
+          <select
+            value={viewType}
+            onChange={(e) => setViewType(e.target.value as ViewType)}
+            className="input w-full sm:w-auto sm:min-w-[120px]"
+          >
+            <option value="DAY">Day</option>
+            <option value="WEEK">Week</option>
+            <option value="MONTH">Month</option>
+            <option value="YTD">YTD</option>
+          </select>
+
+          
         </div>
       </div>
 

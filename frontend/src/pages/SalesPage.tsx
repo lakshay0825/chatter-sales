@@ -254,8 +254,8 @@ export default function SalesPage() {
 
       {/* Filters */}
       <div className="card">
-        <div className="flex items-center gap-4 flex-wrap">
-          <div className="flex-1 min-w-[300px]">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 flex-wrap">
+          <div className="w-full sm:flex-1 sm:min-w-[280px] sm:max-w-[400px]">
             <DateRangePicker
               startDate={filters.startDate}
               endDate={filters.endDate}
@@ -265,10 +265,10 @@ export default function SalesPage() {
               placeholder="Select date range"
             />
           </div>
-          <div className="relative">
+          <div className="relative w-full sm:w-auto sm:min-w-[180px]">
             <UserIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
             <select
-              className="input pl-10 w-auto min-w-[180px] appearance-none"
+              className="input pl-10 w-full sm:w-auto sm:min-w-[180px] appearance-none"
               value={filters.creatorId || ''}
               onChange={(e) =>
                 setFilters({
@@ -290,10 +290,10 @@ export default function SalesPage() {
               )}
             </select>
           </div>
-          <div className="relative">
+          <div className="relative w-full sm:w-auto sm:min-w-[180px]">
             <UserIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
             <select
-              className="input pl-10 w-auto min-w-[180px] appearance-none"
+              className="input pl-10 w-full sm:w-auto sm:min-w-[180px] appearance-none"
               value={filters.userId || ''}
               onChange={(e) =>
                 setFilters({
@@ -315,10 +315,10 @@ export default function SalesPage() {
               )}
             </select>
           </div>
-          <div className="relative">
+          <div className="relative w-full sm:w-auto sm:min-w-[150px]">
             <Tag className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
             <select
-              className="input pl-10 w-auto min-w-[150px] appearance-none"
+              className="input pl-10 w-full sm:w-auto sm:min-w-[150px] appearance-none"
               value={filters.saleType || ''}
               onChange={(e) =>
                 setFilters({
@@ -336,10 +336,10 @@ export default function SalesPage() {
               ))}
             </select>
           </div>
-          <div className="relative">
+          <div className="relative w-full sm:w-auto sm:min-w-[150px]">
             <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
             <select
-              className="input pl-10 w-auto min-w-[150px] appearance-none"
+              className="input pl-10 w-full sm:w-auto sm:min-w-[150px] appearance-none"
               value={filters.status || ''}
               onChange={(e) =>
                 setFilters({
@@ -358,7 +358,7 @@ export default function SalesPage() {
             onClick={() => {
               setFilters({ page: 1, limit: 20 });
             }}
-            className="btn btn-secondary"
+            className="btn btn-secondary w-full sm:w-auto"
             disabled={
               !filters.startDate &&
               !filters.endDate &&
