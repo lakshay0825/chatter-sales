@@ -20,6 +20,7 @@ export interface AdminDashboardData {
   chatterRevenue: Array<{
     chatterId: string;
     chatterName: string;
+    avatar?: string;
     revenue: number;
     commission: number;
   }>;

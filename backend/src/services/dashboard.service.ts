@@ -117,6 +117,7 @@ export async function getAdminDashboard(month: number, year: number, cumulative:
       id: true,
       name: true,
       email: true,
+      avatar: true,
       commissionPercent: true,
       fixedSalary: true,
     },
@@ -170,6 +171,7 @@ export async function getAdminDashboard(month: number, year: number, cumulative:
     chatterRevenue.push({
       chatterId: chatter.id,
       chatterName: chatter.name,
+      avatar: chatter.avatar,
       revenue,
       commission,
     });

@@ -230,7 +230,23 @@ export default function AdminDashboardPage() {
                 <tr key={item.chatterId} className="hover:bg-gray-50">
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 font-medium text-xs">
+                      {item.avatar ? (
+                        <img
+                          src={item.avatar}
+                          alt={item.chatterName}
+                          className="w-8 h-8 rounded-full object-cover"
+                          onError={(e) => {
+                            // Fallback to initial if image fails to load
+                            const target = e.target as HTMLImageElement;
+                            target.style.display = 'none';
+                            const fallback = target.nextElementSibling as HTMLElement;
+                            if (fallback) fallback.style.display = 'flex';
+                          }}
+                        />
+                      ) : null}
+                      <div 
+                        className={`w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 font-medium text-xs ${item.avatar ? 'hidden' : ''}`}
+                      >
                         {item.chatterName.charAt(0)}
                       </div>
                       <span className="text-sm text-gray-900">{item.chatterName}</span>
