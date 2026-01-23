@@ -357,7 +357,6 @@ export async function getAdminDashboard(month: number, year: number, cumulative:
     // - Cashback (if any) is additional margin for the agency only
     const cashbackPercent = onlyfansCommissionPercent === 15 ? 5 : 0;
 
-    const onlyfansCommission = totalSalesAmount * 0.2;
     const cashback = totalSalesAmount * (cashbackPercent / 100);
 
     // Revenue after OnlyFans 20% (used for creator earnings)

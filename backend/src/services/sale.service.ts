@@ -292,7 +292,7 @@ export async function deleteSale(
 
   // Admins and managers can delete any sale, chatters can only delete their own sales
   const isAdminOrManager = userRole === 'ADMIN' || userRole === 'CHATTER_MANAGER';
-  if (!isAdminOrManager && sale.userId !== userId) {
+  if (!isAdminOrManager && sale.userId !== _userId) {
     throw new ForbiddenError('You can only delete your own sales');
   }
 
