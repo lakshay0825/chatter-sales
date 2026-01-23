@@ -31,11 +31,29 @@ const fastify = Fastify({
 
 // Register plugins
 async function buildServer() {
-  // CORS
-  await fastify.register(cors, {
-    origin: process.env.FRONTEND_URL || 'http://localhost:5173',
-    credentials: true,
-  });
+    // CORS
+    await fastify.register(cors, {
+      origin: (origin, cb) => {
+        const allowedOrigins = [
+          'https://app.creatoradvisor.it',
+          'https://www.app.creatoradvisor.it',
+          'http://localhost:5173', // keep local dev if you need it
+        ];
+    
+        // allow requests with no origin (curl, Postman, health checks, etc.)
+        if (!origin) {
+          return cb(null, true);
+        }
+    
+        if (!allowedOrigins.includes(origin)) {
+          const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+          return cb(new Error(msg), false);
+        }
+    
+        return cb(null, true);
+      },
+      credentials: true,
+    });
 
   // JWT
   await fastify.register(jwt, {
