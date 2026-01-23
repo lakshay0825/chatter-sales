@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, DollarSign, TrendingUp, Calendar, CreditCard, Trash2 } from 'lucide-react';
+import { ArrowLeft, Plus, DollarSign, TrendingUp, CreditCard, Trash2 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { dashboardService, ChatterDetailData } from '../services/dashboard.service';
 import { paymentService, PaymentMethod, CreatePaymentData } from '../services/payment.service';
