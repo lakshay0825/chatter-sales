@@ -26,7 +26,9 @@ export default function SalesPage() {
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
   const [deletingSaleId, setDeletingSaleId] = useState<string | null>(null);
   
-  const canDeleteSales = user?.role === UserRole.ADMIN || user?.role === UserRole.CHATTER_MANAGER;
+  // Chatters can delete their own sales, admins/managers can delete any sale
+  // Admins and managers can delete any sale, chatters can delete their own sales
+  const canDeleteAnySale = user?.role === UserRole.ADMIN || user?.role === UserRole.CHATTER_MANAGER;
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 20,
@@ -524,7 +526,7 @@ export default function SalesPage() {
                           >
                             <MoreVertical className="w-5 h-5" />
                           </button>
-                          {canDeleteSales && (
+                          {(canDeleteAnySale || (user?.role === UserRole.CHATTER && sale.userId === user?.id)) && (
                             <button
                               onClick={() => handleDeleteSale(sale.id)}
                               disabled={deletingSaleId === sale.id}

@@ -19,6 +19,7 @@ import GoalsPage from './pages/GoalsPage';
 import GuidelinesPage from './pages/GuidelinesPage';
 import ELearningPage from './pages/ELearningPage';
 import SettingsPage from './pages/SettingsPage';
+import ChatterDetailPage from './pages/ChatterDetailPage';
 
 function App() {
   const { checkAuth, isAuthenticated, isLoading } = useAuthStore();
@@ -105,6 +106,7 @@ function App() {
           <Route path="users" element={<UsersPage />} />
           <Route path="creators" element={<CreatorsPage />} />
           <Route path="admin" element={<AdminDashboardPage />} />
+          <Route path="chatter/:userId" element={<ChatterDetailPage />} />
           <Route path="e-learning" element={<ELearningPage />} />
           <Route path="settings" element={<SettingsPage />} />
         </Route>

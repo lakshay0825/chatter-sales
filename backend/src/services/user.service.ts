@@ -179,7 +179,16 @@ export async function updateUser(userId: string, input: UpdateUserInput) {
 }
 
 /**
- * Delete user (soft delete by setting isActive to false)
+ * Delete user (hard delete - permanently removes user and cascades to related records)
+ * 
+ * This will cascade delete:
+ * - All sales created by this user (onDelete: Cascade)
+ * - All shifts assigned to this user (onDelete: Cascade)
+ * - All goals for this user (onDelete: Cascade)
+ * - All payments for this user (onDelete: Cascade)
+ * 
+ * Shifts created by this user (createdBy) will have createdBy set to null before deletion
+ * since the relation doesn't have cascade delete and would otherwise prevent deletion.
  */
 export async function deleteUser(userId: string) {
   const user = await prisma.user.findUnique({
@@ -190,10 +199,17 @@ export async function deleteUser(userId: string) {
     throw new NotFoundError('User not found');
   }
 
-  // Soft delete
-  await prisma.user.update({
+  // First, set createdBy to null for any shifts created by this user
+  // This is necessary because the createdBy relation doesn't have onDelete: Cascade
+  await prisma.shift.updateMany({
+    where: { createdBy: userId },
+    data: { createdBy: null },
+  });
+
+  // Hard delete - Prisma will cascade delete related records based on schema
+  // Sales, Shifts (assigned), Goals, and Payments will be automatically deleted due to onDelete: Cascade
+  await prisma.user.delete({
     where: { id: userId },
-    data: { isActive: false },
   });
 
   return { message: 'User deleted successfully' };

@@ -1,6 +1,6 @@
 import { prisma } from '../config/database';
 import { UserRole } from '@prisma/client';
-import { NotFoundError } from '../utils/errors';
+import { NotFoundError, ForbiddenError } from '../utils/errors';
 import { calculateCommission, getUserSalesTotal, calculateTotalCommissions } from './commission.service';
 
 /**
@@ -46,8 +46,13 @@ export async function getChatterDashboard(userId: string, month: number, year: n
     dailySales[dayKey] += sale.amount;
     
     // Calculate commission for this sale
+    // Percentage applies only to variable sales (amount), BASE is added 1:1
     if (user.commissionPercent) {
       dailyCommissions[dayKey] += (sale.amount * user.commissionPercent) / 100;
+    }
+    // BASE earnings are always added 1:1
+    if (sale.baseAmount) {
+      dailyCommissions[dayKey] += sale.baseAmount;
     }
   });
 
@@ -177,8 +182,10 @@ export async function getAdminDashboard(month: number, year: number, cumulative:
     });
   }
 
-  // Calculate total commissions
+  // Calculate total commissions and total fixed salaries separately
   let totalCommissions: number;
+  let totalFixedSalaries: number = 0;
+  
   if (cumulative) {
     // For cumulative, sum all commissions from start date to end date
     totalCommissions = 0;
@@ -194,14 +201,16 @@ export async function getAdminDashboard(month: number, year: number, cumulative:
         },
         _sum: {
           amount: true,
+          baseAmount: true,
         },
       });
       
       const revenue = sales._sum.amount || 0;
+      const baseAmount = sales._sum.baseAmount || 0;
       
       // Calculate commission based on compensation type
       if (chatter.commissionPercent) {
-        totalCommissions += (revenue * chatter.commissionPercent) / 100;
+        totalCommissions += (revenue * chatter.commissionPercent) / 100 + baseAmount;
       } else if (chatter.fixedSalary) {
         // For fixed salary, calculate based on number of months
         const startYear = startDate.getFullYear();
@@ -216,11 +225,21 @@ export async function getAdminDashboard(month: number, year: number, cumulative:
           months += (monthEnd - monthStart + 1);
         }
         
-        totalCommissions += chatter.fixedSalary * months;
+        const fixedSalaryTotal = chatter.fixedSalary * months;
+        totalFixedSalaries += fixedSalaryTotal;
+        totalCommissions += fixedSalaryTotal + baseAmount;
+      } else {
+        totalCommissions += baseAmount;
       }
   }
   } else {
     totalCommissions = await calculateTotalCommissions(month, year);
+    // Calculate total fixed salaries for the month
+    for (const chatter of chatters) {
+      if (chatter.fixedSalary) {
+        totalFixedSalaries += chatter.fixedSalary;
+      }
+    }
   }
 
   // Get creator-level financial data
@@ -323,40 +342,59 @@ export async function getAdminDashboard(month: number, year: number, cumulative:
     }
 
     // Calculate total sales amount for this creator in the selected period
-    const totalSalesAmount = creator.sales.reduce((sum, sale) => sum + sale.amount, 0);
+    const totalSalesAmount = creator.sales.reduce(
+      (sum, sale) => sum + sale.amount + (sale.baseAmount || 0),
+      0
+    );
 
     // Get OnlyFans commission percent (default to 20% if not set)
     const onlyfansCommissionPercent = creator.onlyfansCommissionPercent ?? 20;
-    const onlyfansCommissionMultiplier = 1 - (onlyfansCommissionPercent / 100);
-    
-    // Calculate net revenue after OnlyFans commission
-    const netRevenueAfterOnlyFans = totalSalesAmount * onlyfansCommissionMultiplier;
+
+    // Cashback logic:
+    // - OnlyFans always takes 20% from creators' perspective
+    // - Some creators give 5% cashback to the agency (effective 15% platform fee)
+    // - Creator earnings are ALWAYS calculated on Revenue * 0.8 (after 20%)
+    // - Cashback (if any) is additional margin for the agency only
+    const cashbackPercent = onlyfansCommissionPercent === 15 ? 5 : 0;
+
+    const onlyfansCommission = totalSalesAmount * 0.2;
+    const cashback = totalSalesAmount * (cashbackPercent / 100);
+
+    // Revenue after OnlyFans 20% (used for creator earnings)
+    const revenueAfterOnlyFans20 = totalSalesAmount * 0.8;
 
     // Calculate creator earnings based on actual sales
-    // For PERCENTAGE: earnings = (net revenue after OnlyFans * creator percentage) / 100
-    // For SALARY: earnings = fixed salary cost (net revenue after OnlyFans - fixed salary)
+    // For PERCENTAGE: earnings = (Revenue * 0.8 * creator%) as per spec
+    // For SALARY: earnings = fixed salary cost
     let creatorEarnings = 0;
     if (creator.compensationType === 'PERCENTAGE' && creator.revenueSharePercent) {
-      creatorEarnings = (netRevenueAfterOnlyFans * creator.revenueSharePercent) / 100;
+      creatorEarnings = (revenueAfterOnlyFans20 * creator.revenueSharePercent) / 100;
     } else if (creator.compensationType === 'SALARY' && creator.fixedSalaryCost) {
       creatorEarnings = creator.fixedSalaryCost;
     }
 
-    // Calculate net revenue (net revenue after OnlyFans minus creator earnings)
-    const netRevenue = netRevenueAfterOnlyFans - creatorEarnings;
+    // Calculate net revenue from the agency perspective:
+    // Net Revenue = (Revenue * 0.8 - Creator Earnings) + Cashback (if present)
+    const netRevenue = revenueAfterOnlyFans20 - creatorEarnings + cashback;
     
     // Calculate total custom costs
     const customCostsTotal = financial.customCosts 
       ? financial.customCosts.reduce((sum: number, cost: { name: string; amount: number }) => sum + (cost.amount || 0), 0)
       : 0;
     
-    // Calculate chatter commissions for this creator's sales (only percentage-based, not fixed salary)
+    // Calculate chatter commissions for this creator's sales. 
+    // For percentage-based chatters:
+    //   - commission% applies ONLY to variable sales (amount)
+    //   - BASE earnings are added 1:1
+    // Fixed salaries are NOT included here (handled separately in total commissions).
     let chatterCommissions = 0;
     for (const sale of creator.sales) {
       if (sale.user && sale.user.commissionPercent) {
-        // Only count percentage-based commissions, not fixed salary
-        const saleAmountForCommission = sale.amount + (sale.baseAmount || 0);
-        chatterCommissions += (saleAmountForCommission * sale.user.commissionPercent) / 100;
+        const variableAmount = sale.amount;
+        const baseEarnings = sale.baseAmount || 0;
+        chatterCommissions +=
+          (variableAmount * sale.user.commissionPercent) / 100 +
+          baseEarnings;
       }
     }
     
@@ -387,7 +425,156 @@ export async function getAdminDashboard(month: number, year: number, cumulative:
     year,
     chatterRevenue,
     totalCommissions,
+    totalFixedSalaries, // Add total fixed salaries for agency earnings calculation
     creatorFinancials,
+  };
+}
+
+/**
+ * Get chatter detail data with daily breakdown and payments
+ */
+export async function getChatterDetail(
+  targetUserId: string,
+  userRole: UserRole,
+  requestingUserId: string,
+  startDate?: Date,
+  endDate?: Date
+) {
+  // Only admins can view other chatters' details
+  if (userRole !== 'ADMIN' && targetUserId !== requestingUserId) {
+    throw new ForbiddenError('You can only view your own details');
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: targetUserId },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      avatar: true,
+      commissionPercent: true,
+      fixedSalary: true,
+    },
+  });
+
+  if (!user) {
+    throw new NotFoundError('User not found');
+  }
+
+  // Default to current month if no date range provided
+  const now = new Date();
+  const defaultStartDate = startDate || new Date(now.getFullYear(), now.getMonth(), 1);
+  const defaultEndDate = endDate || new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+
+  // Get sales in date range
+  const sales = await prisma.sale.findMany({
+    where: {
+      userId: targetUserId,
+      saleDate: {
+        gte: defaultStartDate,
+        lte: defaultEndDate,
+      },
+    },
+    include: {
+      creator: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
+    },
+    orderBy: {
+      saleDate: 'asc',
+    },
+  });
+
+  // Get payments in date range
+  const payments = await prisma.payment.findMany({
+    where: {
+      userId: targetUserId,
+      paymentDate: {
+        gte: defaultStartDate,
+        lte: defaultEndDate,
+      },
+    },
+    orderBy: {
+      paymentDate: 'desc',
+    },
+  });
+
+  // Group sales by day
+  const dailyData: { [key: string]: { sales: number; commission: number; count: number } } = {};
+
+  sales.forEach((sale) => {
+    const dayKey = sale.saleDate.toISOString().split('T')[0];
+    if (!dailyData[dayKey]) {
+      dailyData[dayKey] = { sales: 0, commission: 0, count: 0 };
+    }
+    dailyData[dayKey].sales += sale.amount;
+    dailyData[dayKey].count += 1;
+    
+    // Calculate commission for this sale
+    if (user.commissionPercent) {
+      dailyData[dayKey].commission += (sale.amount * user.commissionPercent) / 100;
+    }
+    // BASE earnings are always added 1:1
+    if (sale.baseAmount) {
+      dailyData[dayKey].commission += sale.baseAmount;
+    }
+  });
+
+  // Add fixed salary to each day (distributed)
+  if (user.fixedSalary) {
+    const daysDiff = Math.ceil((defaultEndDate.getTime() - defaultStartDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+    const dailySalary = user.fixedSalary / daysDiff;
+    Object.keys(dailyData).forEach((day) => {
+      dailyData[day].commission += dailySalary;
+    });
+  }
+
+  // Convert to arrays for charts
+  const dailyBreakdown = Object.entries(dailyData).map(([date, data]) => ({
+    date,
+    sales: data.sales,
+    commission: Math.round(data.commission * 100) / 100,
+    count: data.count,
+  }));
+
+  // Calculate totals
+  const totalSales = sales.reduce((sum, sale) => sum + sale.amount, 0);
+  
+  // Calculate total commission from sales
+  let totalCommission = 0;
+  const totalVariableSales = sales.reduce((sum, sale) => sum + sale.amount, 0);
+  const totalBaseEarnings = sales.reduce((sum, sale) => sum + (sale.baseAmount || 0), 0);
+  
+  if (user.commissionPercent !== null) {
+    totalCommission += (totalVariableSales * user.commissionPercent) / 100;
+  }
+  
+  if (user.fixedSalary !== null) {
+    // Calculate fixed salary for the date range
+    const daysDiff = Math.ceil((defaultEndDate.getTime() - defaultStartDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+    const daysInMonth = 30; // Approximate
+    totalCommission += (user.fixedSalary / daysInMonth) * daysDiff;
+  }
+  
+  // BASE earnings are always added 1:1
+  totalCommission += totalBaseEarnings;
+  
+  const totalPayments = payments.reduce((sum, payment) => sum + payment.amount, 0);
+  const amountOwed = totalCommission - totalPayments;
+
+  return {
+    user,
+    dailyBreakdown,
+    totalSales,
+    totalCommission,
+    payments,
+    totalPayments,
+    amountOwed,
+    startDate: defaultStartDate,
+    endDate: defaultEndDate,
   };
 }
 

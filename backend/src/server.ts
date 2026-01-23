@@ -130,6 +130,9 @@ async function buildServer() {
   
   const { monthlyFinancialRoutes } = await import('./routes/monthlyFinancial.routes');
   await fastify.register(monthlyFinancialRoutes, { prefix: '/api/monthly-financials' });
+  
+  const { paymentRoutes } = await import('./routes/payment.routes');
+  await fastify.register(paymentRoutes, { prefix: '/api/payments' });
 
   // Register error handler
   fastify.setErrorHandler(errorHandler);

@@ -54,6 +54,7 @@ model User {
   shifts            Shift[]
   createdShifts     Shift[]   @relation("ShiftCreator")
   goals             Goal[]
+  payments          Payment[]
 
   @@index([email])
   @@index([role])
@@ -197,5 +198,30 @@ model Lesson {
   @@index([createdAt])
   @@index([views])
   @@map("lessons")
+}
+
+enum PaymentMethod {
+  CRYPTO
+  WIRE_TRANSFER
+  PAYPAL
+  OTHER
+}
+
+model Payment {
+  id            String        @id @default(cuid())
+  amount        Float
+  paymentDate   DateTime      @default(now())
+  paymentMethod PaymentMethod
+  note          String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  // Relations
+  userId        String
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([paymentDate])
+  @@map("payments")
 }
 

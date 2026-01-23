@@ -290,10 +290,10 @@ export async function deleteSale(
     throw new NotFoundError('Sale not found');
   }
 
-  // Only admins and managers can delete sales
+  // Admins and managers can delete any sale, chatters can only delete their own sales
   const isAdminOrManager = userRole === 'ADMIN' || userRole === 'CHATTER_MANAGER';
-  if (!isAdminOrManager) {
-    throw new ForbiddenError('Only admins and managers can delete sales');
+  if (!isAdminOrManager && sale.userId !== userId) {
+    throw new ForbiddenError('You can only delete your own sales');
   }
 
   await prisma.sale.delete({

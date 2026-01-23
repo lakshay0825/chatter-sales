@@ -46,7 +46,8 @@ export async function saleRoutes(fastify: FastifyInstance) {
             startDate: { type: 'string', format: 'date' }, // Accept date format (YYYY-MM-DD)
             endDate: { type: 'string', format: 'date' }, // Accept date format (YYYY-MM-DD)
             creatorId: { type: 'string' },
-            saleType: { type: 'string', enum: ['CAM', 'TIP', 'PPV', 'INITIAL', 'CUSTOM'] },
+            // Keep this enum in sync with Prisma SaleType (including BASE and MASS_MESSAGE)
+            saleType: { type: 'string', enum: ['CAM', 'TIP', 'PPV', 'INITIAL', 'CUSTOM', 'BASE', 'MASS_MESSAGE'] },
             status: { type: 'string', enum: ['ONLINE', 'OFFLINE'] },
             userId: { type: 'string' },
           },

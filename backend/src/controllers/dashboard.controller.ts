@@ -1,5 +1,5 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { getChatterDashboard, getAdminDashboard, getSalesStats } from '../services/dashboard.service';
+import { getChatterDashboard, getAdminDashboard, getSalesStats, getChatterDetail } from '../services/dashboard.service';
 import { ApiResponse } from '../types';
 
 export async function getChatterDashboardHandler(
@@ -70,6 +70,37 @@ export async function getSalesStatsHandler(
   const response: ApiResponse<typeof stats> = {
     success: true,
     data: stats,
+  };
+
+  return reply.code(200).send(response);
+}
+
+export async function getChatterDetailHandler(
+  request: FastifyRequest<{ 
+    Params: { userId: string };
+    Querystring: { startDate?: string; endDate?: string };
+  }>,
+  reply: FastifyReply
+) {
+  if (!request.user) {
+    return reply.code(401).send({ success: false, error: 'Unauthorized' });
+  }
+
+  const { userId } = request.params;
+  const startDate = request.query.startDate ? new Date(request.query.startDate) : undefined;
+  const endDate = request.query.endDate ? new Date(request.query.endDate) : undefined;
+
+  const detail = await getChatterDetail(
+    userId,
+    request.user.role,
+    request.user.userId,
+    startDate,
+    endDate
+  );
+
+  const response: ApiResponse<typeof detail> = {
+    success: true,
+    data: detail,
   };
 
   return reply.code(200).send(response);

@@ -3,6 +3,7 @@ import {
   getChatterDashboardHandler,
   getAdminDashboardHandler,
   getSalesStatsHandler,
+  getChatterDetailHandler,
 } from '../controllers/dashboard.controller';
 import { authenticate, requireAdmin } from '../middleware/auth';
 
@@ -71,6 +72,32 @@ export async function dashboardRoutes(fastify: FastifyInstance) {
       },
     },
     getAdminDashboardHandler as any
+  );
+
+  // Chatter detail (Admin can view any, others can only view their own)
+  fastify.get(
+    '/chatter/:userId',
+    {
+      schema: {
+        description: 'Get chatter detail with daily breakdown and payments',
+        tags: ['dashboard'],
+        security: [{ bearerAuth: [] }],
+        params: {
+          type: 'object',
+          properties: {
+            userId: { type: 'string' },
+          },
+        },
+        querystring: {
+          type: 'object',
+          properties: {
+            startDate: { type: 'string', format: 'date' },
+            endDate: { type: 'string', format: 'date' },
+          },
+        },
+      },
+    },
+    getChatterDetailHandler as any
   );
 }
 

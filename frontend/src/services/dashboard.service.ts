@@ -25,6 +25,7 @@ export interface AdminDashboardData {
     commission: number;
   }>;
   totalCommissions: number;
+  totalFixedSalaries?: number; // Total fixed salaries for agency earnings calculation
   creatorFinancials: Array<{
     creatorId: string;
     creatorName: string;
@@ -98,5 +99,50 @@ export const dashboardService = {
     });
     return response.data.data!;
   },
+
+  async getChatterDetail(
+    userId: string,
+    startDate?: string,
+    endDate?: string
+  ): Promise<ChatterDetailData> {
+    const params: any = {};
+    if (startDate) params.startDate = startDate;
+    if (endDate) params.endDate = endDate;
+
+    const response = await api.get<ApiResponse<ChatterDetailData>>(`/dashboard/chatter/${userId}`, {
+      params,
+    });
+    return response.data.data!;
+  },
 };
+
+export interface ChatterDetailData {
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    avatar?: string;
+    commissionPercent?: number;
+    fixedSalary?: number;
+  };
+  dailyBreakdown: Array<{
+    date: string;
+    sales: number;
+    commission: number;
+    count: number;
+  }>;
+  totalSales: number;
+  totalCommission: number;
+  payments: Array<{
+    id: string;
+    amount: number;
+    paymentDate: string;
+    paymentMethod: string;
+    note?: string;
+  }>;
+  totalPayments: number;
+  amountOwed: number;
+  startDate: string;
+  endDate: string;
+}
 

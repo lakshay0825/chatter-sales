@@ -78,10 +78,14 @@ export default function AdminDashboardPage() {
   // Calculate totals
   const totalRevenue = safeDashboardData.chatterRevenue.reduce((sum, item) => sum + item.revenue, 0);
   const totalCommissions = safeDashboardData.totalCommissions;
+  const totalFixedSalaries = safeDashboardData.totalFixedSalaries || 0;
+  // Agency earnings: sum of creator-level net revenue (after OnlyFans, creator earnings, and including cashback),
+  // minus all creator-level costs and chatter percentage commissions (handled in agencyProfit on the backend),
+  // minus fixed salaries (agency earnings).
   const totalAgencyEarnings = safeDashboardData.creatorFinancials.reduce(
-    (sum, item) => sum + item.netRevenue,
+    (sum, item) => sum + (item.agencyProfit ?? item.netRevenue),
     0
-  );
+  ) - totalFixedSalaries;
   
   const hasNoData = safeDashboardData.chatterRevenue.length === 0 && safeDashboardData.creatorFinancials.length === 0;
 
@@ -249,7 +253,12 @@ export default function AdminDashboardPage() {
                       >
                         {item.chatterName.charAt(0)}
                       </div>
-                      <span className="text-sm text-gray-900">{item.chatterName}</span>
+                      <a
+                        href={`/chatter/${item.chatterId}`}
+                        className="text-sm text-gray-900 hover:text-primary-600 hover:underline cursor-pointer"
+                      >
+                        {item.chatterName}
+                      </a>
                     </div>
                   </td>
                   <td className="px-6 py-4 text-sm font-medium text-gray-900">
@@ -313,6 +322,56 @@ export default function AdminDashboardPage() {
           })}
         </div>
       )}
+
+      {/* Calculation Notes */}
+      <div className="card">
+        <h2 className="text-xl font-semibold text-gray-900 mb-4">How We Calculate These Numbers</h2>
+        <ul className="list-disc pl-5 space-y-2 text-sm text-gray-600">
+          <li>
+            <span className="font-semibold">Revenue</span> is the sum of all sales for the creator in the selected period
+            (including BASE amounts).
+          </li>
+          <li>
+            <span className="font-semibold">OnlyFans Commission</span> is always calculated as Revenue * 20%.
+            Some creators have a 5% cashback, which is added back to the agency and is not shared with the creator.
+          </li>
+          <li>
+            <span className="font-semibold">Creator Earnings (percentage)</span> are calculated as
+            Revenue * 0.8 * Creator% (i.e. after the 20% OnlyFans fee, without including cashback).
+          </li>
+          <li>
+            <span className="font-semibold">Creator Earnings (salary)</span> are the fixed salary assigned to that creator
+            for the selected period.
+          </li>
+          <li>
+            <span className="font-semibold">Net Revenue</span> is Revenue * 0.8 - Creator Earnings + Cashback (if present),
+            before agency costs and chatter commissions.
+          </li>
+          <li>
+            <span className="font-semibold">Chatter Commissions</span> include percentage commissions on variable sales
+            (amount) plus BASE earnings paid 1:1 to chatters; fixed salaries are tracked separately in the total commissions box.
+          </li>
+          <li>
+            <span className="font-semibold">Agency Earnings</span> is the sum of creator-level Agency Profit
+            (Net Revenue minus marketing costs, Infloww costs, custom costs, and chatter percentage commissions),
+            minus fixed salaries paid to chatters (agency earnings).
+          </li>
+          <li>
+            <span className="font-semibold">Fixed Salaries</span> are monthly fixed payments to chatters that are
+            tracked separately from percentage-based commissions and are subtracted from Agency Earnings.
+          </li>
+          <li>
+            <span className="font-semibold">BASE Earnings</span> are additional earnings paid 1:1 to chatters
+            (if a chatter adds $10 in BASE, their earnings increase by exactly $10, not $10 * commission%).
+          </li>
+          <li>
+            <span className="font-semibold">Cashback</span> is a 5% rebate from OnlyFans that some creators provide
+            to the agency. This cashback is NOT shared with the creator and is added to Net Revenue as additional
+            margin for the agency only. The creator's percentage is always calculated on Revenue * 0.8 (after OnlyFans
+            20% fee), regardless of whether cashback exists.
+          </li>
+        </ul>
+      </div>
     </div>
   );
 }
