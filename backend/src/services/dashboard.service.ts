@@ -141,15 +141,19 @@ export async function getAdminDashboard(month: number, year: number, cumulative:
       },
       _sum: {
         amount: true,
+        baseAmount: true,
       },
     });
 
+    // SALES for creator/agency revenue should exclude BASE
     const revenue = sales._sum.amount || 0;
+    const baseEarnings = sales._sum.baseAmount || 0;
     
     // Calculate commission based on compensation type
     let commission = 0;
     if (chatter.commissionPercent) {
-      commission = (revenue * chatter.commissionPercent) / 100;
+      // Percentage on variable sales only, BASE added 1:1
+      commission = (revenue * chatter.commissionPercent) / 100 + baseEarnings;
     } else if (chatter.fixedSalary) {
       // For cumulative view with fixed salary, calculate based on months
       if (cumulative) {
@@ -179,12 +183,14 @@ export async function getAdminDashboard(month: number, year: number, cumulative:
       avatar: chatter.avatar,
       revenue,
       commission,
+      fixedSalary: chatter.fixedSalary ?? 0,
     });
   }
 
   // Calculate total commissions and total fixed salaries separately
   let totalCommissions: number;
   let totalFixedSalaries: number = 0;
+  let totalOwedToChatters: number = 0;
   
   if (cumulative) {
     // For cumulative, sum all commissions from start date to end date
@@ -240,6 +246,26 @@ export async function getAdminDashboard(month: number, year: number, cumulative:
         totalFixedSalaries += chatter.fixedSalary;
       }
     }
+
+    // For the selected month, compute total amount owed to all chatters:
+    //   total commissions (percentage + BASE + fixed) minus payments sent in the same period.
+    const paymentsAgg = await prisma.payment.aggregate({
+      where: {
+        userId: {
+          in: chatters.map((c) => c.id),
+        },
+        paymentDate: {
+          gte: startDate,
+          lte: endDate,
+        },
+      },
+      _sum: {
+        amount: true,
+      },
+    });
+
+    const totalPaymentsToChatters = paymentsAgg._sum.amount || 0;
+    totalOwedToChatters = totalCommissions - totalPaymentsToChatters;
   }
 
   // Get creator-level financial data
@@ -342,8 +368,9 @@ export async function getAdminDashboard(month: number, year: number, cumulative:
     }
 
     // Calculate total sales amount for this creator in the selected period
+    // SALES for creator earnings should exclude BASE – BASE is chatter-only
     const totalSalesAmount = creator.sales.reduce(
-      (sum, sale) => sum + sale.amount + (sale.baseAmount || 0),
+      (sum, sale) => sum + sale.amount,
       0
     );
 
@@ -425,6 +452,7 @@ export async function getAdminDashboard(month: number, year: number, cumulative:
     chatterRevenue,
     totalCommissions,
     totalFixedSalaries, // Add total fixed salaries for agency earnings calculation
+    totalOwedToChatters,
     creatorFinancials,
   };
 }
@@ -464,6 +492,7 @@ export async function getChatterDetail(
   const now = new Date();
   const defaultStartDate = startDate || new Date(now.getFullYear(), now.getMonth(), 1);
   const defaultEndDate = endDate || new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+  const daysDiff = Math.ceil((defaultEndDate.getTime() - defaultStartDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
 
   // Get sales in date range
   const sales = await prisma.sale.findMany({
@@ -502,32 +531,45 @@ export async function getChatterDetail(
   });
 
   // Group sales by day
-  const dailyData: { [key: string]: { sales: number; commission: number; count: number } } = {};
+  const dailyData: {
+    [key: string]: {
+      sales: number;
+      commissionPercentOnly: number;
+      baseEarnings: number;
+      fixedSalaryPortion: number;
+      count: number;
+    };
+  } = {};
 
   sales.forEach((sale) => {
     const dayKey = sale.saleDate.toISOString().split('T')[0];
     if (!dailyData[dayKey]) {
-      dailyData[dayKey] = { sales: 0, commission: 0, count: 0 };
+      dailyData[dayKey] = {
+        sales: 0,
+        commissionPercentOnly: 0,
+        baseEarnings: 0,
+        fixedSalaryPortion: 0,
+        count: 0,
+      };
     }
     dailyData[dayKey].sales += sale.amount;
     dailyData[dayKey].count += 1;
+    dailyData[dayKey].baseEarnings += sale.baseAmount || 0;
     
-    // Calculate commission for this sale
+    // Calculate percentage commission for this sale (EXCLUDING fixed salary and BASE)
     if (user.commissionPercent) {
-      dailyData[dayKey].commission += (sale.amount * user.commissionPercent) / 100;
-    }
-    // BASE earnings are always added 1:1
-    if (sale.baseAmount) {
-      dailyData[dayKey].commission += sale.baseAmount;
+      dailyData[dayKey].commissionPercentOnly += (sale.amount * user.commissionPercent) / 100;
     }
   });
 
-  // Add fixed salary to each day (distributed)
-  if (user.fixedSalary) {
-    const daysDiff = Math.ceil((defaultEndDate.getTime() - defaultStartDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-    const dailySalary = user.fixedSalary / daysDiff;
+  // Distribute fixed salary evenly across days that have activity in the selected range
+  if (user.fixedSalary && Object.keys(dailyData).length > 0) {
+    const daysInMonthApprox = 30; // keep approximation consistent with total calculation
+    const totalSalaryForRange = (user.fixedSalary / daysInMonthApprox) * daysDiff;
+    const perActiveDaySalary = totalSalaryForRange / Object.keys(dailyData).length;
+
     Object.keys(dailyData).forEach((day) => {
-      dailyData[day].commission += dailySalary;
+      dailyData[day].fixedSalaryPortion = perActiveDaySalary;
     });
   }
 
@@ -535,7 +577,10 @@ export async function getChatterDetail(
   const dailyBreakdown = Object.entries(dailyData).map(([date, data]) => ({
     date,
     sales: data.sales,
-    commission: Math.round(data.commission * 100) / 100,
+    // For graphs/tables we now expose ONLY percentage-based commission
+    commission: Math.round(data.commissionPercentOnly * 100) / 100,
+    baseEarnings: Math.round(data.baseEarnings * 100) / 100,
+    fixedSalaryPortion: Math.round(data.fixedSalaryPortion * 100) / 100,
     count: data.count,
   }));
 
@@ -553,7 +598,6 @@ export async function getChatterDetail(
   
   if (user.fixedSalary !== null) {
     // Calculate fixed salary for the date range
-    const daysDiff = Math.ceil((defaultEndDate.getTime() - defaultStartDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
     const daysInMonth = 30; // Approximate
     totalCommission += (user.fixedSalary / daysInMonth) * daysDiff;
   }

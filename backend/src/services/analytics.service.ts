@@ -159,13 +159,17 @@ export async function getTrendAnalysisForDateRange(
           lte: endDate,
         },
       },
+      select: {
+        saleDate: true,
+        amount: true,
+      },
     });
 
-    // Group by hour
+    // Group by hour (SALES should exclude BASE for creator revenue)
     const hourlyData: { [key: number]: number } = {};
     sales.forEach((sale) => {
       const hour = new Date(sale.saleDate).getHours();
-      hourlyData[hour] = (hourlyData[hour] || 0) + sale.amount + (sale.baseAmount || 0);
+      hourlyData[hour] = (hourlyData[hour] || 0) + sale.amount;
     });
 
     for (let hour = 0; hour < 24; hour++) {
@@ -194,12 +198,11 @@ export async function getTrendAnalysisForDateRange(
         },
         select: {
           amount: true,
-          baseAmount: true,
         },
       });
 
-      // Sum both amount and baseAmount
-      const totalAmount = sales.reduce((sum, sale) => sum + sale.amount + (sale.baseAmount || 0), 0);
+      // SALES should exclude BASE for creator revenue
+      const totalAmount = sales.reduce((sum, sale) => sum + sale.amount, 0);
 
       data.push({
         label: currentDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
@@ -228,12 +231,11 @@ export async function getTrendAnalysisForDateRange(
         },
         select: {
           amount: true,
-          baseAmount: true,
         },
       });
 
-      // Sum both amount and baseAmount
-      const totalAmount = sales.reduce((sum, sale) => sum + sale.amount + (sale.baseAmount || 0), 0);
+      // SALES should exclude BASE for creator revenue
+      const totalAmount = sales.reduce((sum, sale) => sum + sale.amount, 0);
 
       data.push({
         label: currentDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
@@ -262,12 +264,11 @@ export async function getTrendAnalysisForDateRange(
         },
         select: {
           amount: true,
-          baseAmount: true,
         },
       });
 
-      // Sum both amount and baseAmount
-      const totalAmount = sales.reduce((sum, sale) => sum + sale.amount + (sale.baseAmount || 0), 0);
+      // SALES should exclude BASE for creator revenue
+      const totalAmount = sales.reduce((sum, sale) => sum + sale.amount, 0);
 
       data.push({
         label: `${currentDate.toLocaleString('default', { month: 'short' })} ${year}`,
@@ -340,11 +341,14 @@ export async function getPerformanceIndicatorsForDateRange(
         lte: endDate,
       },
     },
+    select: {
+      amount: true,
+    },
   });
 
-  // Total Sales includes both amount and baseAmount (like commission calculations)
-  const totalSales = sales.reduce((sum, sale) => sum + sale.amount + (sale.baseAmount || 0), 0);
-  // Average sale amount also includes baseAmount
+  // SALES metrics should exclude BASE – base is chatter-only
+  const totalSales = sales.reduce((sum, sale) => sum + sale.amount, 0);
+  // Average sale amount based only on variable sales
   const avgSaleAmount = sales.length > 0 ? totalSales / sales.length : 0;
   const salesCount = sales.length;
 
@@ -413,6 +417,10 @@ export async function getChatterLeaderboardForDateRange(
             lte: endDate,
           },
         },
+        select: {
+          amount: true,
+          baseAmount: true,
+        },
       },
     },
   });
@@ -420,11 +428,17 @@ export async function getChatterLeaderboardForDateRange(
   // Calculate totals and commissions for each chatter
   const leaderboard = chatters
     .map((chatter) => {
-      const salesTotal = chatter.sales.reduce((sum, sale) => sum + sale.amount + (sale.baseAmount || 0), 0);
+      // SALES (for ranking) should exclude BASE – BASE is extra commission
+      const variableSalesTotal = chatter.sales.reduce((sum, sale) => sum + sale.amount, 0);
+      const baseEarningsTotal = chatter.sales.reduce((sum, sale) => sum + (sale.baseAmount || 0), 0);
+
       let commission = 0;
 
       if (chatter.commissionPercent) {
-        commission = (salesTotal * chatter.commissionPercent) / 100;
+        // Percentage on variable sales only, BASE added 1:1
+        commission =
+          (variableSalesTotal * chatter.commissionPercent) / 100 +
+          baseEarningsTotal;
       } else if (chatter.fixedSalary) {
         // For fixed salary, calculate based on number of days in period
         const timeDiff = endDate.getTime() - startDate.getTime();
@@ -437,7 +451,7 @@ export async function getChatterLeaderboardForDateRange(
         userId: chatter.id,
         name: chatter.name,
         avatar: chatter.avatar,
-        salesTotal,
+        salesTotal: variableSalesTotal,
         commission,
         salesCount: chatter.sales.length,
       };
@@ -504,6 +518,7 @@ export async function getDailyRevenueBreakdown(
   const creatorBreakdown: { [key: string]: { name: string; revenue: number } } = {};
   let totalRevenue = 0;
 
+  // SALES for creator revenue should exclude BASE
   sales.forEach((sale) => {
     totalRevenue += sale.amount;
     const creatorId = sale.creator.id;
@@ -570,9 +585,9 @@ export async function getWeeklyRevenueBreakdown(
   const creatorBreakdown: { [key: string]: { name: string; revenue: number } } = {};
   let totalRevenue = 0;
 
+  // SALES for creator revenue should exclude BASE
   sales.forEach((sale) => {
-    // Total Revenue includes both amount and baseAmount (gross revenue)
-    const saleTotal = sale.amount + (sale.baseAmount || 0);
+    const saleTotal = sale.amount;
     totalRevenue += saleTotal;
     const creatorId = sale.creator.id;
     if (!creatorBreakdown[creatorId]) {
@@ -671,9 +686,9 @@ export async function getMonthlyRevenueBreakdown(
   const creatorBreakdown: { [key: string]: { name: string; revenue: number } } = {};
   let totalRevenue = 0;
 
+  // SALES for creator revenue should exclude BASE
   sales.forEach((sale) => {
-    // Total Revenue includes both amount and baseAmount (gross revenue)
-    const saleTotal = sale.amount + (sale.baseAmount || 0);
+    const saleTotal = sale.amount;
     totalRevenue += saleTotal;
     const creatorId = sale.creator.id;
     if (!creatorBreakdown[creatorId]) {

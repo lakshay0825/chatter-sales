@@ -23,9 +23,11 @@ export interface AdminDashboardData {
     avatar?: string;
     revenue: number;
     commission: number;
+    fixedSalary: number;
   }>;
   totalCommissions: number;
   totalFixedSalaries?: number; // Total fixed salaries for agency earnings calculation
+  totalOwedToChatters?: number;
   creatorFinancials: Array<{
     creatorId: string;
     creatorName: string;
@@ -129,6 +131,8 @@ export interface ChatterDetailData {
     date: string;
     sales: number;
     commission: number;
+    baseEarnings: number;
+    fixedSalaryPortion: number;
     count: number;
   }>;
   totalSales: number;

@@ -30,6 +30,7 @@ const updateGoalSchema = z.object({
   body: z.object({
     target: z.number().positive().optional(),
     month: z.number().int().min(0).max(12).optional(),
+    bonusAmount: z.number().min(0).optional(),
   }),
 });
 

@@ -79,6 +79,7 @@ export default function AdminDashboardPage() {
   const totalRevenue = safeDashboardData.chatterRevenue.reduce((sum, item) => sum + item.revenue, 0);
   const totalCommissions = safeDashboardData.totalCommissions;
   const totalFixedSalaries = safeDashboardData.totalFixedSalaries || 0;
+  const totalOwedToChatters = safeDashboardData.totalOwedToChatters || 0;
   // Agency earnings: sum of creator-level net revenue (after OnlyFans, creator earnings, and including cashback),
   // minus all creator-level costs and chatter percentage commissions (handled in agencyProfit on the backend),
   // minus fixed salaries (agency earnings).
@@ -139,7 +140,7 @@ export default function AdminDashboardPage() {
       </div>
 
       {/* Key Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div className="card bg-gradient-to-br from-primary-50 to-primary-100/50 border-primary-200 hover:shadow-lg transition-shadow">
           <div className="flex items-center justify-between mb-4">
             <div className="p-3 bg-primary-500 rounded-xl shadow-sm">
@@ -164,6 +165,19 @@ export default function AdminDashboardPage() {
             ${totalCommissions.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </p>
           <p className="text-xs text-gray-500">Paid to chatters</p>
+        </div>
+
+        <div className="card bg-gradient-to-br from-indigo-50 to-indigo-100/50 border-indigo-200 hover:shadow-lg transition-shadow">
+          <div className="flex items-center justify-between mb-4">
+            <div className="p-3 bg-indigo-500 rounded-xl shadow-sm">
+              <Coins className="w-6 h-6 text-white" />
+            </div>
+          </div>
+          <h3 className="text-sm font-medium text-gray-600 mb-2">Amount Owed to Chatters</h3>
+          <p className="text-3xl font-bold text-gray-900 mb-1">
+            ${totalOwedToChatters.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </p>
+          <p className="text-xs text-gray-500">Commissions minus payments for the selected period</p>
         </div>
 
         <div className="card bg-gradient-to-br from-green-50 to-green-100/50 border-green-200 hover:shadow-lg transition-shadow">
@@ -220,12 +234,15 @@ export default function AdminDashboardPage() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                   Commissions
                 </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  Fixed Salary
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
               {safeDashboardData.chatterRevenue.length === 0 ? (
                 <tr>
-                  <td colSpan={3} className="px-6 py-8 text-center text-gray-500">
+                  <td colSpan={4} className="px-6 py-8 text-center text-gray-500">
                     No chatter revenue data available
                   </td>
                 </tr>
@@ -267,6 +284,9 @@ export default function AdminDashboardPage() {
                   <td className="px-6 py-4 text-sm font-medium text-gray-900">
                     ${item.commission.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </td>
+                  <td className="px-6 py-4 text-sm font-medium text-gray-900">
+                    ${item.fixedSalary.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </td>
                 </tr>
                 ))
               )}
@@ -274,8 +294,24 @@ export default function AdminDashboardPage() {
           </table>
         </div>
         {safeDashboardData.chatterRevenue.length > 0 && (
-          <div className="mt-4 text-sm text-gray-500">
-            Showing 1-{safeDashboardData.chatterRevenue.length} of {safeDashboardData.chatterRevenue.length} chatters
+          <div className="mt-4 text-sm text-gray-600 flex flex-col gap-1">
+            <div>
+              Showing 1-{safeDashboardData.chatterRevenue.length} of {safeDashboardData.chatterRevenue.length} chatters
+            </div>
+            <div className="text-xs">
+              <span className="font-semibold">Average per chatter</span> — Revenue:{' '}
+              ${(
+                totalRevenue / safeDashboardData.chatterRevenue.length
+              ).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              , Commissions:{' '}
+              ${(
+                totalCommissions / safeDashboardData.chatterRevenue.length
+              ).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              , Fixed Salary:{' '}
+              ${(
+                totalFixedSalaries / safeDashboardData.chatterRevenue.length
+              ).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </div>
           </div>
         )}
       </div>
@@ -328,8 +364,8 @@ export default function AdminDashboardPage() {
         <h2 className="text-xl font-semibold text-gray-900 mb-4">How We Calculate These Numbers</h2>
         <ul className="list-disc pl-5 space-y-2 text-sm text-gray-600">
           <li>
-            <span className="font-semibold">Revenue</span> is the sum of all sales for the creator in the selected period
-            (including BASE amounts).
+            <span className="font-semibold">Revenue</span> is the sum of all variable sales (Amount) for the creator in the selected period.
+            BASE amounts are excluded here because they are paid as extra commissions to chatters, not to creators.
           </li>
           <li>
             <span className="font-semibold">OnlyFans Commission</span> is always calculated as Revenue * 20%.

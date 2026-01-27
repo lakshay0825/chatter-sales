@@ -27,6 +27,8 @@ export default function ChatterDetailPage() {
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
   });
+  const [selectedMonth, setSelectedMonth] = useState<number>(() => new Date().getMonth() + 1);
+  const [selectedYear, setSelectedYear] = useState<number>(() => new Date().getFullYear());
 
   const isAdmin = currentUser?.role === 'ADMIN';
 
@@ -178,20 +180,46 @@ export default function ChatterDetailPage() {
         )}
       </div>
 
-      {/* Date Range Picker */}
+      {/* Date / Period Selector */}
       <div className="card">
-        <div className="flex items-center gap-4">
-          <label className="text-sm font-medium text-gray-700">Date Range:</label>
-          <DateRangePicker
-            startDate={startDate}
-            endDate={endDate}
-            onChange={(start, end) => {
-              setStartDate(start);
-              setEndDate(end);
-            }}
-            placeholder="Select date range"
-          />
-        </div>
+        {isAdmin ? (
+          <div className="flex items-center gap-4">
+            <label className="text-sm font-medium text-gray-700">Date Range:</label>
+            <DateRangePicker
+              startDate={startDate}
+              endDate={endDate}
+              onChange={(start, end) => {
+                setStartDate(start);
+                setEndDate(end);
+              }}
+              placeholder="Select date range"
+            />
+          </div>
+        ) : (
+          <div className="flex items-center gap-4">
+            <label className="text-sm font-medium text-gray-700">Month:</label>
+            <select
+              value={`${selectedMonth}-${selectedYear}`}
+              onChange={(e) => {
+                const [month, year] = e.target.value.split('-').map(Number);
+                setSelectedMonth(month);
+                setSelectedYear(year);
+                const start = new Date(year, month - 1, 1);
+                const end = new Date(year, month, 0);
+                setStartDate(start.toISOString().split('T')[0]);
+                setEndDate(end.toISOString().split('T')[0]);
+              }}
+              className="input w-auto"
+            >
+              {Array.from({ length: 12 }, (_, i) => i + 1).map((month) => (
+                <option key={month} value={`${month}-${selectedYear}`}>
+                  {new Date(selectedYear, month - 1, 1).toLocaleString('default', { month: 'long' })}{' '}
+                  {selectedYear}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
 
       {/* Key Metrics */}
@@ -226,7 +254,9 @@ export default function ChatterDetailPage() {
               <CreditCard className="w-6 h-6 text-white" />
             </div>
           </div>
-          <h3 className="text-sm font-medium text-gray-600 mb-2">Total Payments</h3>
+          <h3 className="text-sm font-medium text-gray-600 mb-2">
+            {isAdmin ? 'Total Payments' : 'Payments Received'}
+          </h3>
           <p className="text-3xl font-bold text-gray-900">
             ${detailData.totalPayments.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </p>
@@ -241,6 +271,18 @@ export default function ChatterDetailPage() {
           <h3 className="text-sm font-medium text-gray-600 mb-2">Amount Owed</h3>
           <p className={`text-3xl font-bold ${detailData.amountOwed > 0 ? 'text-red-900' : 'text-gray-900'}`}>
             ${detailData.amountOwed.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </p>
+        </div>
+
+        <div className="card bg-gradient-to-br from-indigo-50 to-indigo-100/50 border-indigo-200">
+          <div className="flex items-center justify-between mb-4">
+            <div className="p-3 bg-indigo-500 rounded-xl shadow-sm">
+              <DollarSign className="w-6 h-6 text-white" />
+            </div>
+          </div>
+          <h3 className="text-sm font-medium text-gray-600 mb-2">Fixed Salary (Monthly)</h3>
+          <p className="text-3xl font-bold text-gray-900">
+            ${ (detailData.user.fixedSalary ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </p>
         </div>
       </div>
@@ -277,13 +319,15 @@ export default function ChatterDetailPage() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Sales Count</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Sales ($)</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Commission ($)</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">BASE ($)</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fixed Salary ($)</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Commission % ($)</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
               {detailData.dailyBreakdown.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="px-6 py-8 text-center text-gray-500">
+                  <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
                     No data available for the selected date range.
                   </td>
                 </tr>
@@ -296,6 +340,12 @@ export default function ChatterDetailPage() {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{day.count}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                       ${day.sales.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      ${day.baseEarnings.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      ${day.fixedSalaryPortion.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-green-600">
                       ${day.commission.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -311,7 +361,9 @@ export default function ChatterDetailPage() {
       {/* Payment History */}
       <div className="card">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-semibold text-gray-900">Payment History</h2>
+          <h2 className="text-xl font-semibold text-gray-900">
+            {isAdmin ? 'Payment History' : 'Payments Received'}
+          </h2>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -367,7 +419,7 @@ export default function ChatterDetailPage() {
       </div>
 
       {/* Payment Modal */}
-      {isPaymentModalOpen && (
+      {isPaymentModalOpen && isAdmin && (
         <PaymentModal
           userId={userId!}
           isOpen={isPaymentModalOpen}

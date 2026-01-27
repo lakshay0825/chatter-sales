@@ -24,13 +24,14 @@ export default function GoalModal({
   initialMonth,
   initialYear,
 }: GoalModalProps) {
-  const [formData, setFormData] = useState<CreateGoalData>({
+  const [formData, setFormData] = useState<CreateGoalData & { bonusAmount?: number; userId: string; creatorId: string }>({
     userId: '',
     creatorId: '',
     type: 'SALES',
     target: 0,
     year: initialYear || new Date().getFullYear(),
     month: initialMonth || new Date().getMonth() + 1,
+    bonusAmount: 0,
   });
   const [isLoading, setIsLoading] = useState(false);
   const [users, setUsers] = useState<User[]>([]);
@@ -48,6 +49,7 @@ export default function GoalModal({
           target: goal.target,
           year: goal.year,
           month: goal.month,
+          bonusAmount: goal.bonusAmount ?? 0,
         });
       } else {
         setFormData({
@@ -57,6 +59,7 @@ export default function GoalModal({
           target: 0,
           year: initialYear || new Date().getFullYear(),
           month: initialMonth || new Date().getMonth() + 1,
+          bonusAmount: 0,
         });
       }
       loadUsers();
@@ -112,11 +115,22 @@ export default function GoalModal({
         const updateData: UpdateGoalData = {
           target: formData.target,
           month: formData.month,
+          // Only send bonusAmount when defined and >= 0
+          ...(formData.bonusAmount !== undefined ? { bonusAmount: formData.bonusAmount } : {}),
         };
         await goalService.updateGoal(goal.id, updateData);
         toast.success('Goal updated successfully');
       } else {
-        await goalService.createGoal(formData);
+        // Avoid sending empty strings for IDs (backend expects optional fields, not empty strings)
+        const payload: CreateGoalData = {
+          type: formData.type,
+          target: formData.target,
+          year: formData.year,
+          month: formData.month,
+          ...(formData.userId ? { userId: formData.userId } : {}),
+          ...(formData.creatorId ? { creatorId: formData.creatorId } : {}),
+        };
+        await goalService.createGoal(payload);
         toast.success('Goal created successfully');
       }
       onSuccess();
@@ -293,6 +307,29 @@ export default function GoalModal({
               step="0.01"
               required
             />
+          </div>
+
+          {/* Bonus (optional, mainly for achieved goals) */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Commission Bonus ($, optional)
+            </label>
+            <input
+              type="number"
+              value={formData.bonusAmount ?? 0}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  bonusAmount: e.target.value === '' ? 0 : parseFloat(e.target.value),
+                })
+              }
+              className="input"
+              min="0"
+              step="0.01"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Flat bonus in dollars that you plan to pay when this goal is reached.
+            </p>
           </div>
 
           {/* Actions */}

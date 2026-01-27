@@ -323,7 +323,7 @@ export default function AnalyticsPage() {
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm text-gray-600">Total Revenue</p>
+                  <p className="text-sm text-gray-600">Total Sales (excl. BASE)</p>
                   <p className="text-2xl font-bold text-primary-600">
                     ${dailyBreakdown.totalRevenue.toLocaleString('en-US', {
                       minimumFractionDigits: 2,
@@ -374,7 +374,7 @@ export default function AnalyticsPage() {
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm text-gray-600">Total Revenue</p>
+                  <p className="text-sm text-gray-600">Total Sales (excl. BASE)</p>
                   <p className="text-2xl font-bold text-primary-600">
                     ${weeklyBreakdown.totalRevenue.toLocaleString('en-US', {
                       minimumFractionDigits: 2,
@@ -416,7 +416,7 @@ export default function AnalyticsPage() {
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm text-gray-600">Total Revenue</p>
+                  <p className="text-sm text-gray-600">Total Sales (excl. BASE)</p>
                   <p className="text-2xl font-bold text-primary-600">
                     ${monthlyBreakdown.totalRevenue.toLocaleString('en-US', {
                       minimumFractionDigits: 2,
@@ -468,7 +468,7 @@ export default function AnalyticsPage() {
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm text-gray-600">Total Revenue</p>
+                  <p className="text-sm text-gray-600">Total Sales (excl. BASE)</p>
                   <p className="text-2xl font-bold text-primary-600">
                     ${dateRangeBreakdown.totalRevenue.toLocaleString('en-US', {
                       minimumFractionDigits: 2,
@@ -517,7 +517,9 @@ export default function AnalyticsPage() {
             <p className="text-2xl font-bold text-gray-900">
               ${performanceIndicators.totalSales.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </p>
-            <p className="text-xs text-gray-500 mt-1">{performanceIndicators.salesCount} transactions</p>
+            <p className="text-xs text-gray-500 mt-1">
+              {performanceIndicators.salesCount} transactions (Amount only, BASE excluded)
+            </p>
           </div>
 
           <div className="card">

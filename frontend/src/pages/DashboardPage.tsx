@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from 'recharts';
 import { Lock } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
+import { useNavigate } from 'react-router-dom';
 import { dashboardService, ChatterDashboardData } from '../services/dashboard.service';
 import { getCurrentMonthYear, getMonthName, formatItalianDate } from '../utils/date';
 import { parseISO } from 'date-fns';
@@ -10,6 +11,14 @@ import { getUserFriendlyError } from '../utils/errorHandler';
 
 export default function DashboardPage() {
   const { user } = useAuthStore();
+  const navigate = useNavigate();
+
+  // For chatters, prefer the new detailed dashboard
+  useEffect(() => {
+    if (user?.role === 'CHATTER') {
+      navigate(`/chatter/${user.id}`, { replace: true });
+    }
+  }, [user, navigate]);
   const [dashboardData, setDashboardData] = useState<ChatterDashboardData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedMonth, setSelectedMonth] = useState(getCurrentMonthYear().month);

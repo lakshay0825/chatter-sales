@@ -118,6 +118,15 @@ export default function GoalProgressCard({ progress, onViewDetails }: GoalProgre
         </div>
       </div>
 
+      {goal.bonusAmount && goal.bonusAmount > 0 && (
+        <div className="mt-4 pt-4 border-t border-gray-200">
+          <p className="text-xs text-gray-500 mb-1">Planned Commission Bonus</p>
+          <p className="text-sm font-semibold text-gray-900">
+            ${goal.bonusAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </p>
+        </div>
+      )}
+
       {!achieved && (
         <div className="mt-4 pt-4 border-t border-gray-200">
           <div className="flex items-center gap-2 text-sm">

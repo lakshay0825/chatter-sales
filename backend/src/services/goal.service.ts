@@ -14,6 +14,7 @@ export interface CreateGoalInput {
 export interface UpdateGoalInput {
   target?: number;
   month?: number;
+  bonusAmount?: number;
 }
 
 /**
@@ -133,6 +134,10 @@ export async function updateGoal(goalId: string, input: UpdateGoalInput) {
 
   if (input.month !== undefined && (input.month < 0 || input.month > 12)) {
     throw new ValidationError('Month must be between 0 (yearly) and 12');
+  }
+
+  if (input.bonusAmount !== undefined && input.bonusAmount < 0) {
+    throw new ValidationError('Bonus amount cannot be negative');
   }
 
   const updated = await prisma.goal.update({

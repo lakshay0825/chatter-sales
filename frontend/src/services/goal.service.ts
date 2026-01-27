@@ -11,6 +11,7 @@ export interface Goal {
   month: number; // 0 for yearly goals
   createdAt: string;
   updatedAt: string;
+  bonusAmount?: number;
   user?: {
     id: string;
     name: string;
@@ -34,6 +35,7 @@ export interface CreateGoalData {
 export interface UpdateGoalData {
   target?: number;
   month?: number;
+  bonusAmount?: number;
 }
 
 export interface GoalProgress {
