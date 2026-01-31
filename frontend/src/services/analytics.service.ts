@@ -98,6 +98,16 @@ export interface DateRangeRevenueBreakdown {
   creatorBreakdown: CreatorBreakdown[];
 }
 
+// Helper: format a Date as local calendar date (YYYY-MM-DD) without timezone shifting.
+// Using toISOString() can move dates back/forward a day when converting to UTC,
+// which breaks weekly/YTD ranges. This helper keeps the actual chosen calendar day.
+const toLocalDateString = (d: Date) => {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 export const analyticsService = {
   /**
    * Get month-over-month comparison
@@ -145,8 +155,14 @@ export const analyticsService = {
   ): Promise<TrendData[]> {
     const params: any = {};
     if (userId) params.userId = userId;
-    if (startDate) params.startDate = startDate.toISOString().split('T')[0];
-    if (endDate) params.endDate = endDate.toISOString().split('T')[0];
+    if (startDate) {
+      params.startDate =
+        viewType === 'DAY' ? startDate.toISOString() : toLocalDateString(startDate);
+    }
+    if (endDate) {
+      params.endDate =
+        viewType === 'DAY' ? endDate.toISOString() : toLocalDateString(endDate);
+    }
     if (viewType) params.viewType = viewType;
 
     const response = await api.get<ApiResponse<TrendData[]>>('/analytics/trends', { params });
@@ -168,8 +184,14 @@ export const analyticsService = {
     if (month) params.month = month;
     if (year) params.year = year;
     if (userId) params.userId = userId;
-    if (startDate) params.startDate = startDate.toISOString().split('T')[0];
-    if (endDate) params.endDate = endDate.toISOString().split('T')[0];
+    if (startDate) {
+      params.startDate =
+        viewType === 'DAY' ? startDate.toISOString() : toLocalDateString(startDate);
+    }
+    if (endDate) {
+      params.endDate =
+        viewType === 'DAY' ? endDate.toISOString() : toLocalDateString(endDate);
+    }
     if (viewType) params.viewType = viewType;
 
     const response = await api.get<ApiResponse<PerformanceIndicators>>(
@@ -192,8 +214,9 @@ export const analyticsService = {
     const params: any = { limit };
     if (month) params.month = month;
     if (year) params.year = year;
-    if (startDate) params.startDate = startDate.toISOString().split('T')[0];
-    if (endDate) params.endDate = endDate.toISOString().split('T')[0];
+    // Pass full ISO range so leaderboard uses exact same period as selected view (Day/Week/Month/YTD)
+    if (startDate) params.startDate = startDate.toISOString();
+    if (endDate) params.endDate = endDate.toISOString();
 
     const response = await api.get<ApiResponse<LeaderboardEntry[]>>('/analytics/leaderboard', {
       params,
@@ -202,12 +225,20 @@ export const analyticsService = {
   },
 
   /**
-   * Get daily revenue breakdown with creator breakdown
+   * Get daily revenue breakdown with creator breakdown.
+   * Pass startDate/endDate for day view so breakdown and leaderboard use the same range (and partial "today").
    */
-  async getDailyRevenueBreakdown(date?: Date, userId?: string): Promise<DailyRevenueBreakdown> {
+  async getDailyRevenueBreakdown(
+    date?: Date,
+    userId?: string,
+    startDate?: Date,
+    endDate?: Date
+  ): Promise<DailyRevenueBreakdown> {
     const params: any = {};
     if (date) params.date = date.toISOString().split('T')[0];
     if (userId) params.userId = userId;
+    if (startDate) params.startDate = startDate.toISOString();
+    if (endDate) params.endDate = endDate.toISOString();
 
     const response = await api.get<ApiResponse<DailyRevenueBreakdown>>('/analytics/revenue/daily', {
       params,
@@ -220,7 +251,8 @@ export const analyticsService = {
    */
   async getWeeklyRevenueBreakdown(weekStart?: Date, userId?: string): Promise<WeeklyRevenueBreakdown> {
     const params: any = {};
-    if (weekStart) params.weekStart = weekStart.toISOString().split('T')[0];
+    // Backend schema expects a plain date (YYYY-MM-DD) for weekStart
+    if (weekStart) params.weekStart = toLocalDateString(weekStart);
     if (userId) params.userId = userId;
 
     const response = await api.get<ApiResponse<WeeklyRevenueBreakdown>>('/analytics/revenue/weekly', {
@@ -258,7 +290,9 @@ export const analyticsService = {
   },
 
   /**
-   * Get revenue breakdown for custom date range with creator breakdown
+   * Get revenue breakdown for custom date range with creator breakdown.
+   * Use local calendar dates (YYYY-MM-DD) to avoid timezone shifting the range
+   * (e.g. Jan 1 becoming Dec 31 in UTC).
    */
   async getDateRangeRevenueBreakdown(
     startDate: Date,
@@ -266,8 +300,8 @@ export const analyticsService = {
     userId?: string
   ): Promise<DateRangeRevenueBreakdown> {
     const params: any = {
-      startDate: startDate.toISOString().split('T')[0],
-      endDate: endDate.toISOString().split('T')[0],
+      startDate: toLocalDateString(startDate),
+      endDate: toLocalDateString(endDate),
     };
     if (userId) params.userId = userId;
 

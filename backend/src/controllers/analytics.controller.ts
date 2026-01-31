@@ -73,10 +73,9 @@ export async function getTrendAnalysisHandler(
 
   let trends;
   if (request.query.startDate && request.query.endDate && request.query.viewType) {
-    // Use date range with view type
+    // Use exact date range with view type (trust frontend-provided timestamps)
     const startDate = new Date(request.query.startDate);
     const endDate = new Date(request.query.endDate);
-    endDate.setHours(23, 59, 59, 999);
     const viewType = request.query.viewType as 'DAY' | 'WEEK' | 'MONTH' | 'YTD';
     trends = await getTrendAnalysisForDateRange(startDate, endDate, viewType, userId);
   } else {
@@ -104,10 +103,9 @@ export async function getPerformanceIndicatorsHandler(
 
   let indicators;
   if (request.query.startDate && request.query.endDate) {
-    // Use date range
+    // Use exact date range (trust frontend-provided timestamps)
     const startDate = new Date(request.query.startDate);
     const endDate = new Date(request.query.endDate);
-    endDate.setHours(23, 59, 59, 999);
     const viewType = request.query.viewType as 'DAY' | 'WEEK' | 'MONTH' | 'YTD' | undefined;
     indicators = await getPerformanceIndicatorsForDateRange(startDate, endDate, userId, viewType);
   } else {
@@ -138,10 +136,9 @@ export async function getLeaderboardHandler(
 
   let leaderboard;
   if (request.query.startDate && request.query.endDate) {
-    // Use date range
+    // Use date range (exact range from frontend so Day/Week/Month/YTD and leaderboard match)
     const startDate = new Date(request.query.startDate);
     const endDate = new Date(request.query.endDate);
-    endDate.setHours(23, 59, 59, 999);
     leaderboard = await getChatterLeaderboardForDateRange(startDate, endDate, limit);
   } else {
     // Use month/year
@@ -160,7 +157,7 @@ export async function getLeaderboardHandler(
 }
 
 export async function getDailyRevenueBreakdownHandler(
-  request: FastifyRequest<{ Querystring: { date?: string; userId?: string } }>,
+  request: FastifyRequest<{ Querystring: { date?: string; userId?: string; startDate?: string; endDate?: string } }>,
   reply: FastifyReply
 ) {
   if (!request.user) {
@@ -169,8 +166,10 @@ export async function getDailyRevenueBreakdownHandler(
 
   const date = request.query.date ? new Date(request.query.date) : new Date();
   const userId = request.query.userId || (request.user.role === 'CHATTER' ? request.user.userId : undefined);
+  const rangeStart = request.query.startDate ? new Date(request.query.startDate) : undefined;
+  const rangeEnd = request.query.endDate ? new Date(request.query.endDate) : undefined;
 
-  const breakdown = await getDailyRevenueBreakdown(date, userId);
+  const breakdown = await getDailyRevenueBreakdown(date, userId, rangeStart, rangeEnd);
 
   const response: ApiResponse<typeof breakdown> = {
     success: true,

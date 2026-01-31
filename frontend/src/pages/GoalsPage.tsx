@@ -36,9 +36,7 @@ export default function GoalsPage() {
       if (selectedType) {
         filters.type = selectedType;
       }
-      if (!isAdmin(user)) {
-        filters.userId = user?.id;
-      }
+      // Chatters/chatter managers: backend returns their personal goals + all creator-level goals (no userId filter)
 
       const goalsData = await goalService.getGoals(filters);
       setGoals(goalsData);

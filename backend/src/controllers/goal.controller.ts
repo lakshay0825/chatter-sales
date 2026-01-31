@@ -63,6 +63,12 @@ export async function getGoalsHandler(
   if (request.query.year) filters.year = parseInt(request.query.year);
   if (request.query.month) filters.month = parseInt(request.query.month);
 
+  // Chatters and chatter managers see their own goals plus all creator-level goals
+  const role = request.user.role;
+  if ((role === 'CHATTER' || role === 'CHATTER_MANAGER') && !request.query.userId && !request.query.creatorId) {
+    filters.forChatterOrManagerUserId = request.user.userId;
+  }
+
   const goals = await getGoals(filters);
 
   const response: ApiResponse<typeof goals> = {

@@ -424,8 +424,9 @@ export async function getAdminDashboard(month: number, year: number, cumulative:
       }
     }
     
-    // Calculate agency profit (net revenue minus all costs including custom costs and chatter commissions)
-    const agencyProfit = netRevenue - financial.marketingCosts - financial.toolCosts - financial.otherCosts - customCostsTotal - chatterCommissions;
+    // Agency profit: net revenue minus agency costs only (marketing, Infloww, custom).
+    // Chatter commissions are NOT subtracted from Agency Profit (they are a separate line item for transparency).
+    const agencyProfit = netRevenue - financial.marketingCosts - financial.toolCosts - financial.otherCosts - customCostsTotal;
 
     return {
       creatorId: creator.id,

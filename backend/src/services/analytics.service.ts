@@ -355,8 +355,9 @@ export async function getPerformanceIndicatorsForDateRange(
   // Calculate period length based on view type
   let periodLength: number;
   if (viewType === 'DAY') {
-    // For day view, use 24 hours
-    periodLength = 24;
+    // For day view, use actual hours in range (partial day e.g. "today" up to now)
+    const hoursDiff = (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60);
+    periodLength = Math.max(0.25, hoursDiff); // at least 0.25 (15 min) to avoid div by zero
   } else {
     // For week/month/YTD, use days
     const timeDiff = endDate.getTime() - startDate.getTime();
@@ -480,16 +481,31 @@ export async function getChatterLeaderboard(
 }
 
 /**
- * Get daily revenue breakdown with creator breakdown
+ * Get daily revenue breakdown with creator breakdown.
+ * When startDate/endDate are provided (e.g. from frontend day view), use them so
+ * leaderboard and breakdown share the same range and timezone. For "today" partial
+ * day, endDate can be current time.
  */
 export async function getDailyRevenueBreakdown(
   date: Date,
-  userId?: string
+  userId?: string,
+  rangeStart?: Date,
+  rangeEnd?: Date
 ) {
-  const startDate = new Date(date);
-  startDate.setHours(0, 0, 0, 0);
-  const endDate = new Date(date);
-  endDate.setHours(23, 59, 59, 999);
+  const startDate = rangeStart
+    ? new Date(rangeStart)
+    : (() => {
+        const s = new Date(date);
+        s.setHours(0, 0, 0, 0);
+        return s;
+      })();
+  const endDate = rangeEnd
+    ? new Date(rangeEnd)
+    : (() => {
+        const e = new Date(date);
+        e.setHours(23, 59, 59, 999);
+        return e;
+      })();
 
   const whereClause: any = {
     saleDate: {
@@ -539,23 +555,21 @@ export async function getDailyRevenueBreakdown(
 }
 
 /**
- * Get weekly revenue breakdown with creator breakdown (MON to SUN)
+ * Get weekly revenue breakdown with creator breakdown (Mon–Sun).
+ *
+ * IMPORTANT: We now trust the frontend to pass the *actual* week start (Monday)
+ * and do NOT shift it server‑side. This keeps Weekly Revenue Breakdown, trend,
+ * performance indicators and Top Performers perfectly aligned.
  */
 export async function getWeeklyRevenueBreakdown(
   weekStartDate: Date,
   userId?: string
 ) {
-  // Ensure week starts on Monday (using date-fns logic)
   const startDate = new Date(weekStartDate);
-  const dayOfWeek = startDate.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
-  // Calculate days to subtract to get to Monday (day 1)
-  // If Sunday (0), subtract 6 days; otherwise subtract (dayOfWeek - 1)
-  const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-  startDate.setDate(startDate.getDate() - daysToMonday);
   startDate.setHours(0, 0, 0, 0);
 
   const endDate = new Date(startDate);
-  endDate.setDate(startDate.getDate() + 6); // Sunday
+  endDate.setDate(startDate.getDate() + 6); // 7‑day window: Mon–Sun
   endDate.setHours(23, 59, 59, 999);
 
   const whereClause: any = {

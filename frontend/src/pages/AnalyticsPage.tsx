@@ -75,7 +75,18 @@ export default function AnalyticsPage() {
         startDate = new Date(date);
         startDate.setHours(0, 0, 0, 0);
         endDate = new Date(date);
-        endDate.setHours(23, 59, 59, 999);
+        const isToday =
+          date.getDate() === new Date().getDate() &&
+          date.getMonth() === new Date().getMonth() &&
+          date.getFullYear() === new Date().getFullYear();
+        // For today, show stats up to current time only (not full day)
+        if (!isToday) {
+          endDate.setHours(23, 59, 59, 999);
+        }
+        // else endDate stays at 00:00:00 so we use it; we'll set endDate to now below for API calls
+        if (isToday) {
+          endDate.setTime(Date.now());
+        }
       } else if (viewType === 'WEEK') {
         const date = new Date(selectedDate);
         startDate = startOfWeek(date, { weekStartsOn: 1 }); // Monday
@@ -137,14 +148,19 @@ export default function AnalyticsPage() {
         ),
       ];
 
-      // Load view-specific data
+      // Load view-specific data (use same startDate/endDate for day view so leaderboard and breakdown match)
       if (viewType === 'DAY') {
-        promises.push(analyticsService.getDailyRevenueBreakdown(new Date(selectedDate), userId));
+        promises.push(
+          analyticsService.getDailyRevenueBreakdown(
+            new Date(selectedDate),
+            userId,
+            startDate,
+            endDate
+          )
+        );
       } else if (viewType === 'WEEK') {
-        // Ensure week starts on Monday when calling the API
-        const weekDate = new Date(selectedDate);
-        const weekStartDate = startOfWeek(weekDate, { weekStartsOn: 1 }); // Monday
-        promises.push(analyticsService.getWeeklyRevenueBreakdown(weekStartDate, userId));
+        // Use the same computed startDate (Monday) for weekly breakdown so it matches all other weekly stats
+        promises.push(analyticsService.getWeeklyRevenueBreakdown(startDate, userId));
       } else if (viewType === 'MONTH') {
         promises.push(analyticsService.getMonthlyRevenueBreakdown(selectedMonth, selectedYear, userId));
       } else if (viewType === 'YTD') {
@@ -619,11 +635,23 @@ export default function AnalyticsPage() {
         </div>
       )}
 
-      {/* Leaderboard */}
+      {/* Leaderboard — same period as selected view (Day / Week / Month / YTD) */}
       {leaderboard.length > 0 && (
         <div className="card">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-semibold text-gray-900">Top Performers</h2>
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900">Top Performers</h2>
+              <p className="text-sm text-gray-500 mt-0.5">
+                {viewType === 'DAY' && selectedDate &&
+                  `For ${new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}`}
+                {viewType === 'WEEK' && selectedDate &&
+                  `For week of ${startOfWeek(new Date(selectedDate), { weekStartsOn: 1 }).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${endOfWeek(new Date(selectedDate), { weekStartsOn: 1 }).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`}
+                {viewType === 'MONTH' && `For ${getMonthName(selectedMonth)} ${selectedYear}`}
+                {viewType === 'YTD' && (ytdStartDate && ytdEndDate
+                  ? `For ${new Date(ytdStartDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} – ${new Date(ytdEndDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
+                  : `For ${selectedYear} (YTD)`)}
+              </p>
+            </div>
             <Trophy className="w-6 h-6 text-yellow-500" />
           </div>
           <div className="space-y-3">

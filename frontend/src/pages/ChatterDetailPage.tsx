@@ -274,17 +274,6 @@ export default function ChatterDetailPage() {
           </p>
         </div>
 
-        <div className="card bg-gradient-to-br from-indigo-50 to-indigo-100/50 border-indigo-200">
-          <div className="flex items-center justify-between mb-4">
-            <div className="p-3 bg-indigo-500 rounded-xl shadow-sm">
-              <DollarSign className="w-6 h-6 text-white" />
-            </div>
-          </div>
-          <h3 className="text-sm font-medium text-gray-600 mb-2">Fixed Salary (Monthly)</h3>
-          <p className="text-3xl font-bold text-gray-900">
-            ${ (detailData.user.fixedSalary ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-          </p>
-        </div>
       </div>
 
       {/* Earnings Graph */}
@@ -320,38 +309,53 @@ export default function ChatterDetailPage() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Sales Count</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Sales ($)</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">BASE ($)</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fixed Salary ($)</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Commission % ($)</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
               {detailData.dailyBreakdown.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
+                  <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
                     No data available for the selected date range.
                   </td>
                 </tr>
               ) : (
-                detailData.dailyBreakdown.map((day) => (
-                  <tr key={day.date} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {formatItalianDate(new Date(day.date))}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{day.count}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      ${day.sales.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      ${day.baseEarnings.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      ${day.fixedSalaryPortion.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-green-600">
-                      ${day.commission.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </td>
-                  </tr>
-                ))
+                <>
+                  {detailData.dailyBreakdown.map((day) => (
+                    <tr key={day.date} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {formatItalianDate(new Date(day.date))}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{day.count}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        ${day.sales.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        ${day.baseEarnings.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-green-600">
+                        ${day.commission.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </td>
+                    </tr>
+                  ))}
+                  {/* Average sales per day row: sum of daily sales / number of days worked */}
+                  {(() => {
+                    const daysWorked = detailData.dailyBreakdown.length;
+                    const totalSalesInPeriod = detailData.dailyBreakdown.reduce((sum, d) => sum + d.sales, 0);
+                    const avgSalesPerDay = daysWorked > 0 ? totalSalesInPeriod / daysWorked : 0;
+                    return (
+                      <tr className="bg-primary-50 font-semibold border-t-2 border-gray-200">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Avg. sales/day (days worked)</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">—</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-primary-700">
+                          ${avgSalesPerDay.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">—</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">—</td>
+                      </tr>
+                    );
+                  })()}
+                </>
               )}
             </tbody>
           </table>

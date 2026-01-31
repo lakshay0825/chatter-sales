@@ -12,8 +12,10 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
   const { user } = useAuthStore();
   const isAdmin = user?.role === UserRole.ADMIN;
 
+  // Chatters and chatter managers: default dashboard is their detail page (graph, daily sales, payments)
+  const dashboardPath = !isAdmin && user?.id ? `/chatter/${user.id}` : '/dashboard';
   const navItems = [
-    { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { path: dashboardPath, label: 'Dashboard', icon: LayoutDashboard },
     { path: '/sales', label: 'Sales Report', icon: ShoppingCart },
     { path: '/shifts', label: 'Shifts', icon: Calendar },
     { path: '/analytics', label: 'Analytics', icon: TrendingUp },

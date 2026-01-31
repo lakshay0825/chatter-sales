@@ -19,6 +19,7 @@ interface CreatorFinancialCardProps {
   toolCosts: number;
   customCosts?: Array<{ name: string; amount: number }>;
   netRevenue: number;
+  agencyProfit: number; // Backend-calculated: netRevenue - costs - chatterCommissions
   month: number;
   year: number;
   onUpdate: () => void;
@@ -38,6 +39,7 @@ export default function CreatorFinancialCard({
   toolCosts: initialToolCosts,
   customCosts: initialCustomCosts = [],
   netRevenue: initialNetRevenue,
+  agencyProfit: backendAgencyProfit,
   month,
   year,
   onUpdate,
@@ -50,11 +52,9 @@ export default function CreatorFinancialCard({
   const [customCosts, setCustomCosts] = useState<Array<{ name: string; amount: number }>>(initialCustomCosts || []);
 
   // Earnings are calculated from actual sales (totalSalesAmount), not from manually entered grossRevenue
-  // The backend already calculates this correctly, so we use the provided creatorEarnings
-  // Calculate derived values based on actual sales
-  const netRevenue = initialNetRevenue; // Already calculated from totalSalesAmount - creatorEarnings
-  const customCostsTotal = customCosts.reduce((sum, cost) => sum + (cost.amount || 0), 0);
-  const agencyProfit = netRevenue - marketingCosts - toolCosts - customCostsTotal;
+  const netRevenue = initialNetRevenue;
+  // Use backend agency profit (already subtracts chatter commissions and all costs)
+  const agencyProfit = backendAgencyProfit;
 
   const handleSave = async () => {
     setIsLoading(true);

@@ -132,6 +132,8 @@ export async function analyticsRoutes(fastify: FastifyInstance) {
           properties: {
             date: { type: 'string', format: 'date' },
             userId: { type: 'string' },
+            startDate: { type: 'string' },
+            endDate: { type: 'string' },
           },
         },
       },

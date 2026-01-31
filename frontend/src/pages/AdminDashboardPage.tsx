@@ -350,6 +350,7 @@ export default function AdminDashboardPage() {
                 toolCosts={creatorFinancial.toolCosts}
                 customCosts={creatorFinancial.customCosts}
                 netRevenue={creatorFinancial.netRevenue}
+                agencyProfit={creatorFinancial.agencyProfit}
                 month={selectedMonth}
                 year={selectedYear}
                 onUpdate={loadDashboard}
@@ -389,8 +390,8 @@ export default function AdminDashboardPage() {
           </li>
           <li>
             <span className="font-semibold">Agency Earnings</span> is the sum of creator-level Agency Profit
-            (Net Revenue minus marketing costs, Infloww costs, custom costs, and chatter percentage commissions),
-            minus fixed salaries paid to chatters (agency earnings).
+            (Net Revenue minus marketing costs, Infloww costs, and custom costs only; Chatter Commissions are shown
+            separately and are not subtracted from Agency Profit), minus fixed salaries paid to chatters.
           </li>
           <li>
             <span className="font-semibold">Fixed Salaries</span> are monthly fixed payments to chatters that are

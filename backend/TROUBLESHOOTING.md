@@ -2,6 +2,41 @@
 
 Common issues and solutions for the Chatter Sales Management Backend.
 
+## 🔴 Prisma Client: "Invalid or unexpected token" (SyntaxError in default.js)
+
+### Error:
+```
+SyntaxError: Invalid or unexpected token
+    at Object.<anonymous> (backend\node_modules\.prisma\client\default.js:2:6)
+```
+
+### Cause:
+The generated Prisma client in `node_modules/.prisma/client/` is corrupted or incomplete (e.g. `default.js` is empty or truncated).
+
+### Solution:
+
+1. **Stop the dev server** (Ctrl+C in the terminal where `npm run dev` is running).
+2. In the **backend** folder, regenerate the Prisma client:
+   ```bash
+   npx prisma generate
+   ```
+3. If you see **`spawn EPERM`**: close other terminals/IDEs using this project, then run the same command again. If it still fails, try:
+   - Running your terminal **as Administrator**, or
+   - Temporarily excluding `backend\node_modules\.prisma` from Windows Defender/antivirus, then run `npx prisma generate` again.
+4. Start the dev server again:
+   ```bash
+   npm run dev
+   ```
+
+If the problem persists, remove the generated client and reinstall:
+```bash
+cd backend
+Remove-Item -Recurse -Force node_modules\.prisma
+npx prisma generate
+```
+
+---
+
 ## 🔴 MySQL Authentication Plugin Error
 
 ### Error:

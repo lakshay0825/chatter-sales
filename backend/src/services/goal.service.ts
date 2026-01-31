@@ -83,7 +83,9 @@ export async function getGoalById(goalId: string) {
 }
 
 /**
- * Get goals with filters
+ * Get goals with filters.
+ * When forChatterOrManagerUserId is set (CHATTER/CHATTER_MANAGER), return goals where
+ * userId = that user OR creatorId is not null, so creator-level goals are visible to all chatters.
  */
 export async function getGoals(filters: {
   userId?: string;
@@ -91,11 +93,19 @@ export async function getGoals(filters: {
   type?: string;
   year?: number;
   month?: number;
+  forChatterOrManagerUserId?: string;
 }) {
   const where: any = {};
 
-  if (filters.userId) where.userId = filters.userId;
-  if (filters.creatorId) where.creatorId = filters.creatorId;
+  if (filters.forChatterOrManagerUserId !== undefined) {
+    where.OR = [
+      { userId: filters.forChatterOrManagerUserId },
+      { creatorId: { not: null } },
+    ];
+  } else {
+    if (filters.userId) where.userId = filters.userId;
+    if (filters.creatorId) where.creatorId = filters.creatorId;
+  }
   if (filters.type) where.type = filters.type;
   if (filters.year !== undefined) where.year = filters.year;
   if (filters.month !== undefined) where.month = filters.month;
