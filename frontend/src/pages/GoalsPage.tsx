@@ -8,11 +8,14 @@ import toast from 'react-hot-toast';
 import { getUserFriendlyError } from '../utils/errorHandler';
 import GoalModal from '../components/GoalModal';
 import GoalProgressCard from '../components/GoalProgressCard';
+import { creatorService } from '../services/creator.service';
+import type { Creator } from '../types';
 
 export default function GoalsPage() {
   const { user } = useAuthStore();
   const [goals, setGoals] = useState<Goal[]>([]);
   const [goalProgresses, setGoalProgresses] = useState<Map<string, GoalProgress>>(new Map());
+  const [creators, setCreators] = useState<Creator[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingGoal, setEditingGoal] = useState<Goal | null>(null);
@@ -23,6 +26,19 @@ export default function GoalsPage() {
   useEffect(() => {
     loadGoals();
   }, [selectedYear, selectedMonth, selectedType, user]);
+
+  useEffect(() => {
+    // Load creators so we can show avatar + name on creator-level goals
+    const loadCreators = async () => {
+      try {
+        const data = await creatorService.getCreators(true);
+        setCreators(data);
+      } catch {
+        // If this fails, we still show creator name from goal object
+      }
+    };
+    loadCreators();
+  }, []);
 
   const loadGoals = async () => {
     setIsLoading(true);
@@ -213,10 +229,16 @@ export default function GoalsPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {goals.map((goal) => {
             const progress = goalProgresses.get(goal.id);
+            const creatorDetails =
+              goal.creatorId ? creators.find((c) => c.id === goal.creatorId) : undefined;
             return (
               <div key={goal.id} className="relative">
                 {progress ? (
-                  <GoalProgressCard progress={progress} />
+                  <GoalProgressCard
+                    progress={progress}
+                    creatorDetails={creatorDetails}
+                    isChatterView={!isAdmin(user)}
+                  />
                 ) : (
                   <div className="card">
                     <div className="flex items-center gap-2 mb-4">

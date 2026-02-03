@@ -1,12 +1,15 @@
 import { Trophy, Target, TrendingUp, CheckCircle2 } from 'lucide-react';
 import { GoalProgress } from '../services/goal.service';
+import type { Creator } from '../types';
 
 interface GoalProgressCardProps {
   progress: GoalProgress;
   onViewDetails?: () => void;
+  creatorDetails?: Creator; // Optional creator info (avatar + name) for creator-level goals
+  isChatterView?: boolean;  // When true, copy explains bonus in chatter-friendly terms
 }
 
-export default function GoalProgressCard({ progress, onViewDetails }: GoalProgressCardProps) {
+export default function GoalProgressCard({ progress, onViewDetails, creatorDetails, isChatterView }: GoalProgressCardProps) {
   const { goal, current, target, progress: progressPercent, remaining, achieved } = progress;
 
   const getProgressColor = () => {
@@ -53,12 +56,78 @@ export default function GoalProgressCard({ progress, onViewDetails }: GoalProgre
 
   const getGoalScope = () => {
     if (goal.user) {
-      return `User: ${goal.user.name}`;
+      return `User goal for ${goal.user.name}`;
     }
     if (goal.creator) {
-      return `Creator: ${goal.creator.name}`;
+      return `Creator goal for ${goal.creator.name}`;
     }
-    return 'Global';
+    return 'Global goal';
+  };
+
+  const renderCreatorBadge = () => {
+    if (!goal.creator) return null;
+    const displayName = creatorDetails?.name || goal.creator.name;
+    const initial = displayName.charAt(0).toUpperCase();
+    const avatar = creatorDetails?.avatar;
+
+    return (
+      <div className="flex items-center gap-2 mt-1">
+        {avatar ? (
+          <img
+            src={avatar}
+            alt={displayName}
+            className="w-7 h-7 rounded-full object-cover"
+          />
+        ) : (
+          <div className="w-7 h-7 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 text-xs font-semibold">
+            {initial}
+          </div>
+        )}
+        <span className="text-xs font-medium text-gray-700">Creator: {displayName}</span>
+      </div>
+    );
+  };
+
+  const renderBonusDescription = () => {
+    if (!goal.bonusAmount || goal.bonusAmount <= 0) return null;
+
+    // Human-friendly description of what unlocks the bonus
+    const baseText = `$${goal.bonusAmount.toLocaleString('en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
+
+    if (goal.creator) {
+      const creatorName = creatorDetails?.name || goal.creator.name;
+      const metricLabel =
+        goal.type === 'SALES'
+          ? 'sales'
+          : goal.type === 'COMMISSION'
+          ? 'commission'
+          : 'revenue';
+
+      // Chatter-facing copy
+      return (
+        <p className="text-xs text-gray-600">
+          {isChatterView
+            ? `${baseText} bonus will be unlocked for chatters if ${creatorName} reaches ${metricLabel} of $${goal.target.toLocaleString(
+                'en-US',
+                { minimumFractionDigits: 2, maximumFractionDigits: 2 }
+              )} in this period.`
+            : `Bonus: ${baseText} when ${creatorName} reaches ${metricLabel} of $${goal.target.toLocaleString(
+                'en-US',
+                { minimumFractionDigits: 2, maximumFractionDigits: 2 }
+              )}.`}
+        </p>
+      );
+    }
+
+    // Fallback for non-creator goals
+    return (
+      <p className="text-xs text-gray-600">
+        Bonus: {baseText} will be unlocked when this goal is achieved.
+      </p>
+    );
   };
 
   return (
@@ -74,6 +143,7 @@ export default function GoalProgressCard({ progress, onViewDetails }: GoalProgre
           </div>
           <p className="text-sm text-gray-600 mb-1">{getGoalPeriod()}</p>
           <p className="text-xs text-gray-500">{getGoalScope()}</p>
+          {renderCreatorBadge()}
         </div>
         {achieved && (
           <div className="p-2 bg-green-100 rounded-full">
@@ -120,10 +190,14 @@ export default function GoalProgressCard({ progress, onViewDetails }: GoalProgre
 
       {goal.bonusAmount && goal.bonusAmount > 0 && (
         <div className="mt-4 pt-4 border-t border-gray-200">
-          <p className="text-xs text-gray-500 mb-1">Planned Commission Bonus</p>
-          <p className="text-sm font-semibold text-gray-900">
-            ${goal.bonusAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          <p className="text-xs text-gray-500 mb-1">Bonus when goal is reached</p>
+          <p className="text-sm font-semibold text-gray-900 mb-1">
+            ${goal.bonusAmount.toLocaleString('en-US', {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            })}
           </p>
+          {renderBonusDescription()}
         </div>
       )}
 

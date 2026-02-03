@@ -424,9 +424,19 @@ export async function getAdminDashboard(month: number, year: number, cumulative:
       }
     }
     
-    // Agency profit: net revenue minus agency costs only (marketing, Infloww, custom).
-    // Chatter commissions are NOT subtracted from Agency Profit (they are a separate line item for transparency).
-    const agencyProfit = netRevenue - financial.marketingCosts - financial.toolCosts - financial.otherCosts - customCostsTotal;
+    // Agency profit: Net Revenue minus ALL costs, including chatter commissions.
+    // This matches the visual breakdown: Net Revenue
+    //  - Chatter Commissions
+    //  - Marketing Costs
+    //  - Infloww Cost
+    //  - Other/Custom Costs
+    const agencyProfit =
+      netRevenue -
+      chatterCommissions -
+      financial.marketingCosts -
+      financial.toolCosts -
+      financial.otherCosts -
+      customCostsTotal;
 
     return {
       creatorId: creator.id,
@@ -466,7 +476,7 @@ export async function getChatterDetail(
   userRole: UserRole,
   requestingUserId: string,
   startDate?: Date,
-  endDate?: Date
+  _endDate?: Date
 ) {
   // Only admins can view other chatters' details
   if (userRole !== 'ADMIN' && targetUserId !== requestingUserId) {
@@ -489,10 +499,12 @@ export async function getChatterDetail(
     throw new NotFoundError('User not found');
   }
 
-  // Default to current month if no date range provided
-  const now = new Date();
-  const defaultStartDate = startDate || new Date(now.getFullYear(), now.getMonth(), 1);
-  const defaultEndDate = endDate || new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+  // For chatter dashboards we always work on full calendar months.
+  // Use the month of the provided startDate (coming from the frontend month selector),
+  // or the current month if none is provided.
+  const base = startDate || new Date();
+  const defaultStartDate = new Date(base.getFullYear(), base.getMonth(), 1);
+  const defaultEndDate = new Date(base.getFullYear(), base.getMonth() + 1, 0, 23, 59, 59, 999);
   const daysDiff = Math.ceil((defaultEndDate.getTime() - defaultStartDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
 
   // Get sales in date range
@@ -531,7 +543,15 @@ export async function getChatterDetail(
     },
   });
 
-  // Group sales by day
+  // Helper to generate a stable local calendar date key (YYYY-MM-DD) without timezone shifts
+  const toLocalDateKey = (d: Date) => {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  // Group sales by day (using local calendar date keys)
   const dailyData: {
     [key: string]: {
       sales: number;
@@ -543,7 +563,7 @@ export async function getChatterDetail(
   } = {};
 
   sales.forEach((sale) => {
-    const dayKey = sale.saleDate.toISOString().split('T')[0];
+    const dayKey = toLocalDateKey(sale.saleDate);
     if (!dailyData[dayKey]) {
       dailyData[dayKey] = {
         sales: 0,
@@ -574,16 +594,47 @@ export async function getChatterDetail(
     });
   }
 
-  // Convert to arrays for charts
-  const dailyBreakdown = Object.entries(dailyData).map(([date, data]) => ({
-    date,
-    sales: data.sales,
-    // For graphs/tables we now expose ONLY percentage-based commission
-    commission: Math.round(data.commissionPercentOnly * 100) / 100,
-    baseEarnings: Math.round(data.baseEarnings * 100) / 100,
-    fixedSalaryPortion: Math.round(data.fixedSalaryPortion * 100) / 100,
-    count: data.count,
-  }));
+  // Ensure we have an entry for every calendar day in the selected range,
+  // even if there were no sales that day. This lets the UI render a full
+  // month view instead of only days with activity.
+  const cursor = new Date(defaultStartDate);
+  cursor.setHours(0, 0, 0, 0);
+  const endOfRange = new Date(defaultEndDate);
+  endOfRange.setHours(0, 0, 0, 0);
+
+  while (cursor <= endOfRange) {
+    const dayKey = toLocalDateKey(cursor);
+    if (!dailyData[dayKey]) {
+      dailyData[dayKey] = {
+        sales: 0,
+        commissionPercentOnly: 0,
+        baseEarnings: 0,
+        fixedSalaryPortion: 0,
+        count: 0,
+      };
+    }
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  // Convert to arrays for charts / tables, sorted by date.
+  // Clamp to the selected month so older/next‑month days never appear
+  // even if timezone conversions shift raw timestamps.
+  const targetMonth = defaultStartDate.getMonth() + 1; // 1-12
+  const dailyBreakdown = Object.entries(dailyData)
+    .filter(([dateKey]) => {
+      const monthPart = parseInt(dateKey.split('-')[1] || '0', 10);
+      return monthPart === targetMonth;
+    })
+    .sort(([dateA], [dateB]) => dateA.localeCompare(dateB))
+    .map(([date, data]) => ({
+      date,
+      sales: data.sales,
+      // For graphs/tables we now expose ONLY percentage-based commission
+      commission: Math.round(data.commissionPercentOnly * 100) / 100,
+      baseEarnings: Math.round(data.baseEarnings * 100) / 100,
+      fixedSalaryPortion: Math.round(data.fixedSalaryPortion * 100) / 100,
+      count: data.count,
+    }));
 
   // Calculate totals
   const totalSales = sales.reduce((sum, sale) => sum + sale.amount, 0);

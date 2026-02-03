@@ -1,19 +1,17 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-<<<<<<< Current (Your changes)
-import { Plus, DollarSign, TrendingUp, CreditCard, Trash2 } from 'lucide-react';
-=======
 import { Plus, DollarSign, TrendingUp, CreditCard, Trash2, Pencil } from 'lucide-react';
->>>>>>> Incoming (Background Agent changes)
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { dashboardService, ChatterDetailData } from '../services/dashboard.service';
-import { paymentService, PaymentMethod, CreatePaymentData, UpdatePaymentData, Payment } from '../services/payment.service';
+import { paymentService, PaymentMethod, CreatePaymentData, UpdatePaymentData } from '../services/payment.service';
 import { useAuthStore } from '../store/authStore';
 import { formatItalianDate } from '../utils/date';
 import toast from 'react-hot-toast';
 import { getUserFriendlyError } from '../utils/errorHandler';
 import { openConfirm } from '../components/ConfirmDialog';
 // We use month/year selection only to keep all chatter dashboards on full calendar months
+
+type ChatterPayment = ChatterDetailData['payments'][number];
 
 export default function ChatterDetailPage() {
   const { userId } = useParams<{ userId: string }>();
@@ -22,7 +20,7 @@ export default function ChatterDetailPage() {
   const [detailData, setDetailData] = useState<ChatterDetailData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
-  const [editingPayment, setEditingPayment] = useState<Payment | null>(null);
+  const [editingPayment, setEditingPayment] = useState<ChatterPayment | null>(null);
   const [deletingPaymentId, setDeletingPaymentId] = useState<string | null>(null);
 
   // Helper to format a Date as local calendar date (YYYY-MM-DD) without timezone shift
@@ -467,7 +465,7 @@ export default function ChatterDetailPage() {
 // Payment Modal Component
 interface PaymentModalProps {
   userId: string;
-  editingPayment: Payment | null;
+  editingPayment: ChatterPayment | null;
   isOpen: boolean;
   onClose: () => void;
   onSuccess: (data: CreatePaymentData) => Promise<void>;
@@ -487,7 +485,7 @@ function PaymentModal({ userId, editingPayment, isOpen, onClose, onSuccess, onUp
       setAmount(String(editingPayment.amount));
       // paymentDate is an ISO string from backend; strip time if present
       setPaymentDate(editingPayment.paymentDate.split('T')[0]);
-      setPaymentMethod(editingPayment.paymentMethod);
+      setPaymentMethod(editingPayment.paymentMethod as PaymentMethod);
       setNote(editingPayment.note ?? '');
     } else if (isOpen && !editingPayment) {
       // Reset for create mode
