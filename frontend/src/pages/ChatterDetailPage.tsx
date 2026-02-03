@@ -1,15 +1,19 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, DollarSign, TrendingUp, CreditCard, Trash2 } from 'lucide-react';
+<<<<<<< Current (Your changes)
+import { Plus, DollarSign, TrendingUp, CreditCard, Trash2 } from 'lucide-react';
+=======
+import { Plus, DollarSign, TrendingUp, CreditCard, Trash2, Pencil } from 'lucide-react';
+>>>>>>> Incoming (Background Agent changes)
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { dashboardService, ChatterDetailData } from '../services/dashboard.service';
-import { paymentService, PaymentMethod, CreatePaymentData } from '../services/payment.service';
+import { paymentService, PaymentMethod, CreatePaymentData, UpdatePaymentData, Payment } from '../services/payment.service';
 import { useAuthStore } from '../store/authStore';
 import { formatItalianDate } from '../utils/date';
 import toast from 'react-hot-toast';
 import { getUserFriendlyError } from '../utils/errorHandler';
 import { openConfirm } from '../components/ConfirmDialog';
-import DateRangePicker from '../components/DateRangePicker';
+// We use month/year selection only to keep all chatter dashboards on full calendar months
 
 export default function ChatterDetailPage() {
   const { userId } = useParams<{ userId: string }>();
@@ -18,14 +22,26 @@ export default function ChatterDetailPage() {
   const [detailData, setDetailData] = useState<ChatterDetailData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [editingPayment, setEditingPayment] = useState<Payment | null>(null);
   const [deletingPaymentId, setDeletingPaymentId] = useState<string | null>(null);
+
+  // Helper to format a Date as local calendar date (YYYY-MM-DD) without timezone shift
+  const toLocalDateString = (d: Date) => {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   const [startDate, setStartDate] = useState<string | undefined>(() => {
     const now = new Date();
-    return new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+    const start = new Date(now.getFullYear(), now.getMonth(), 1);
+    return toLocalDateString(start);
   });
   const [endDate, setEndDate] = useState<string | undefined>(() => {
     const now = new Date();
-    return new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    return toLocalDateString(end);
   });
   const [selectedMonth, setSelectedMonth] = useState<number>(() => new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState<number>(() => new Date().getFullYear());
@@ -75,6 +91,18 @@ export default function ChatterDetailPage() {
       loadDetailData();
     } catch (error: any) {
       toast.error(getUserFriendlyError(error, { action: 'create', entity: 'payment' }));
+    }
+  };
+
+  const handleUpdatePayment = async (paymentId: string, data: UpdatePaymentData) => {
+    try {
+      await paymentService.updatePayment(paymentId, data);
+      toast.success('Payment updated successfully');
+      setIsPaymentModalOpen(false);
+      setEditingPayment(null);
+      loadDetailData();
+    } catch (error: any) {
+      toast.error(getUserFriendlyError(error, { action: 'update', entity: 'payment' }));
     }
   };
 
@@ -144,13 +172,6 @@ export default function ChatterDetailPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <button
-            onClick={() => navigate('/admin')}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-            title="Back to Admin Dashboard"
-          >
-            <ArrowLeft className="w-5 h-5 text-gray-600" />
-          </button>
           <div className="flex items-center gap-3">
             {detailData.user.avatar ? (
               <img
@@ -171,7 +192,10 @@ export default function ChatterDetailPage() {
         </div>
         {isAdmin && (
           <button
-            onClick={() => setIsPaymentModalOpen(true)}
+            onClick={() => {
+              setEditingPayment(null);
+              setIsPaymentModalOpen(true);
+            }}
             className="btn btn-primary flex items-center gap-2"
           >
             <Plus className="w-4 h-4" />
@@ -180,46 +204,31 @@ export default function ChatterDetailPage() {
         )}
       </div>
 
-      {/* Date / Period Selector */}
+      {/* Period Selector – always full months */}
       <div className="card">
-        {isAdmin ? (
-          <div className="flex items-center gap-4">
-            <label className="text-sm font-medium text-gray-700">Date Range:</label>
-            <DateRangePicker
-              startDate={startDate}
-              endDate={endDate}
-              onChange={(start, end) => {
-                setStartDate(start);
-                setEndDate(end);
-              }}
-              placeholder="Select date range"
-            />
-          </div>
-        ) : (
-          <div className="flex items-center gap-4">
-            <label className="text-sm font-medium text-gray-700">Month:</label>
-            <select
-              value={`${selectedMonth}-${selectedYear}`}
-              onChange={(e) => {
-                const [month, year] = e.target.value.split('-').map(Number);
-                setSelectedMonth(month);
-                setSelectedYear(year);
-                const start = new Date(year, month - 1, 1);
-                const end = new Date(year, month, 0);
-                setStartDate(start.toISOString().split('T')[0]);
-                setEndDate(end.toISOString().split('T')[0]);
-              }}
-              className="input w-auto"
-            >
-              {Array.from({ length: 12 }, (_, i) => i + 1).map((month) => (
-                <option key={month} value={`${month}-${selectedYear}`}>
-                  {new Date(selectedYear, month - 1, 1).toLocaleString('default', { month: 'long' })}{' '}
-                  {selectedYear}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
+        <div className="flex items-center gap-4">
+          <label className="text-sm font-medium text-gray-700">Month:</label>
+          <select
+            value={`${selectedMonth}-${selectedYear}`}
+            onChange={(e) => {
+              const [month, year] = e.target.value.split('-').map(Number);
+              setSelectedMonth(month);
+              setSelectedYear(year);
+              const start = new Date(year, month - 1, 1);
+              const end = new Date(year, month, 0);
+              setStartDate(toLocalDateString(start));
+              setEndDate(toLocalDateString(end));
+            }}
+            className="input w-auto"
+          >
+            {Array.from({ length: 12 }, (_, i) => i + 1).map((month) => (
+              <option key={month} value={`${month}-${selectedYear}`}>
+                {new Date(selectedYear, month - 1, 1).toLocaleString('default', { month: 'long' })}{' '}
+                {selectedYear}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {/* Key Metrics */}
@@ -338,10 +347,13 @@ export default function ChatterDetailPage() {
                       </td>
                     </tr>
                   ))}
-                  {/* Average sales per day row: sum of daily sales / number of days worked */}
+                  {/* Average sales per day row: sum of daily sales / number of days worked (days with at least one sale) */}
                   {(() => {
-                    const daysWorked = detailData.dailyBreakdown.length;
-                    const totalSalesInPeriod = detailData.dailyBreakdown.reduce((sum, d) => sum + d.sales, 0);
+                    const workedDays = detailData.dailyBreakdown.filter(
+                      (d) => d.sales > 0 || d.count > 0 || d.baseEarnings > 0
+                    );
+                    const daysWorked = workedDays.length;
+                    const totalSalesInPeriod = workedDays.reduce((sum, d) => sum + d.sales, 0);
                     const avgSalesPerDay = daysWorked > 0 ? totalSalesInPeriod / daysWorked : 0;
                     return (
                       <tr className="bg-primary-50 font-semibold border-t-2 border-gray-200">
@@ -404,14 +416,26 @@ export default function ChatterDetailPage() {
                     <td className="px-6 py-4 text-sm text-gray-600">{payment.note || '-'}</td>
                     {isAdmin && (
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        <button
-                          onClick={() => handleDeletePayment(payment.id)}
-                          disabled={deletingPaymentId === payment.id}
-                          className="text-red-400 hover:text-red-600 disabled:opacity-50"
-                          title="Delete payment"
-                        >
-                          <Trash2 className="w-5 h-5" />
-                        </button>
+                        <div className="flex items-center gap-3">
+                          <button
+                            onClick={() => {
+                              setEditingPayment(payment);
+                              setIsPaymentModalOpen(true);
+                            }}
+                            className="text-blue-600 hover:text-blue-800 transition-colors"
+                            title="Edit payment"
+                          >
+                            <Pencil className="w-5 h-5" />
+                          </button>
+                          <button
+                            onClick={() => handleDeletePayment(payment.id)}
+                            disabled={deletingPaymentId === payment.id}
+                            className="text-red-400 hover:text-red-600 disabled:opacity-50"
+                            title="Delete payment"
+                          >
+                            <Trash2 className="w-5 h-5" />
+                          </button>
+                        </div>
                       </td>
                     )}
                   </tr>
@@ -426,9 +450,14 @@ export default function ChatterDetailPage() {
       {isPaymentModalOpen && isAdmin && (
         <PaymentModal
           userId={userId!}
+          editingPayment={editingPayment}
           isOpen={isPaymentModalOpen}
-          onClose={() => setIsPaymentModalOpen(false)}
+          onClose={() => {
+            setIsPaymentModalOpen(false);
+            setEditingPayment(null);
+          }}
           onSuccess={handleCreatePayment}
+          onUpdate={handleUpdatePayment}
         />
       )}
     </div>
@@ -438,17 +467,36 @@ export default function ChatterDetailPage() {
 // Payment Modal Component
 interface PaymentModalProps {
   userId: string;
+  editingPayment: Payment | null;
   isOpen: boolean;
   onClose: () => void;
   onSuccess: (data: CreatePaymentData) => Promise<void>;
+  onUpdate: (id: string, data: UpdatePaymentData) => Promise<void>;
 }
 
-function PaymentModal({ userId, isOpen, onClose, onSuccess }: PaymentModalProps) {
+function PaymentModal({ userId, editingPayment, isOpen, onClose, onSuccess, onUpdate }: PaymentModalProps) {
   const [amount, setAmount] = useState('');
   const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0]);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(PaymentMethod.WIRE_TRANSFER);
   const [note, setNote] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Prefill form when editing
+  useEffect(() => {
+    if (isOpen && editingPayment) {
+      setAmount(String(editingPayment.amount));
+      // paymentDate is an ISO string from backend; strip time if present
+      setPaymentDate(editingPayment.paymentDate.split('T')[0]);
+      setPaymentMethod(editingPayment.paymentMethod);
+      setNote(editingPayment.note ?? '');
+    } else if (isOpen && !editingPayment) {
+      // Reset for create mode
+      setAmount('');
+      setPaymentDate(new Date().toISOString().split('T')[0]);
+      setPaymentMethod(PaymentMethod.WIRE_TRANSFER);
+      setNote('');
+    }
+  }, [isOpen, editingPayment]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -459,13 +507,21 @@ function PaymentModal({ userId, isOpen, onClose, onSuccess }: PaymentModalProps)
 
     setIsSubmitting(true);
     try {
-      await onSuccess({
-        userId,
+      const payload = {
         amount: parseFloat(amount),
         paymentDate,
         paymentMethod,
         note: note || undefined,
-      });
+      };
+
+      if (editingPayment) {
+        await onUpdate(editingPayment.id, payload);
+      } else {
+        await onSuccess({
+          userId,
+          ...payload,
+        });
+      }
       // Reset form
       setAmount('');
       setPaymentDate(new Date().toISOString().split('T')[0]);
@@ -480,11 +536,15 @@ function PaymentModal({ userId, isOpen, onClose, onSuccess }: PaymentModalProps)
 
   if (!isOpen) return null;
 
+  const isEdit = !!editingPayment;
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
         <div className="p-6">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">Register Payment</h2>
+          <h2 className="text-2xl font-bold text-gray-900 mb-6">
+            {isEdit ? 'Edit Payment' : 'Register Payment'}
+          </h2>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Amount ($)</label>
@@ -551,7 +611,13 @@ function PaymentModal({ userId, isOpen, onClose, onSuccess }: PaymentModalProps)
                 className="btn btn-primary flex-1"
                 disabled={isSubmitting}
               >
-                {isSubmitting ? 'Registering...' : 'Register Payment'}
+                {isSubmitting
+                  ? isEdit
+                    ? 'Updating...'
+                    : 'Registering...'
+                  : isEdit
+                    ? 'Update Payment'
+                    : 'Register Payment'}
               </button>
             </div>
           </form>
