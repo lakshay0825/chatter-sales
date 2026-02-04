@@ -237,12 +237,18 @@ export default function AdminDashboardPage() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                   Fixed Salary
                 </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  Total BASE
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  Total Retribution
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
               {safeDashboardData.chatterRevenue.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="px-6 py-8 text-center text-gray-500">
+                  <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
                     No chatter revenue data available
                   </td>
                 </tr>
@@ -257,7 +263,6 @@ export default function AdminDashboardPage() {
                           alt={item.chatterName}
                           className="w-8 h-8 rounded-full object-cover"
                           onError={(e) => {
-                            // Fallback to initial if image fails to load
                             const target = e.target as HTMLImageElement;
                             target.style.display = 'none';
                             const fallback = target.nextElementSibling as HTMLElement;
@@ -287,6 +292,12 @@ export default function AdminDashboardPage() {
                   <td className="px-6 py-4 text-sm font-medium text-gray-900">
                     ${item.fixedSalary.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </td>
+                  <td className="px-6 py-4 text-sm font-medium text-gray-900">
+                    ${(item.totalBase ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </td>
+                  <td className="px-6 py-4 text-sm font-bold text-gray-900">
+                    ${(item.totalRetribution ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </td>
                 </tr>
                 ))
               )}
@@ -311,7 +322,15 @@ export default function AdminDashboardPage() {
               ${(
                 totalFixedSalaries / safeDashboardData.chatterRevenue.length
               ).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              , Total Retribution:{' '}
+              ${(
+                safeDashboardData.chatterRevenue.reduce((s, i) => s + (i.totalRetribution ?? 0), 0) /
+                safeDashboardData.chatterRevenue.length
+              ).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
+            <p className="text-xs text-gray-500 mt-1">
+              <strong>Total Retribution</strong> = Total BASE + Fixed Salary + Sales commission (matches each chatter’s Dashboard).
+            </p>
           </div>
         )}
       </div>

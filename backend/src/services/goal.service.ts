@@ -9,6 +9,7 @@ export interface CreateGoalInput {
   target: number;
   year: number;
   month: number; // 0 for yearly goals
+  bonusAmount?: number;
 }
 
 export interface UpdateGoalInput {
@@ -27,6 +28,10 @@ export async function createGoal(input: CreateGoalInput) {
 
   if (input.target <= 0) {
     throw new ValidationError('Target must be greater than 0');
+  }
+
+  if (input.bonusAmount !== undefined && input.bonusAmount < 0) {
+    throw new ValidationError('Bonus amount cannot be negative');
   }
 
   // Validate user/creator exists

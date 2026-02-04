@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
+import { X, Target, Gift } from 'lucide-react';
 import { goalService, CreateGoalData, UpdateGoalData, Goal } from '../services/goal.service';
 import { userService } from '../services/user.service';
 import { creatorService } from '../services/creator.service';
@@ -82,7 +82,7 @@ export default function GoalModal({
   const loadCreators = async () => {
     setLoadingCreators(true);
     try {
-      const data = await creatorService.getCreators();
+      const data = await creatorService.getCreators(true); // include avatars for preview
       setCreators(data);
     } catch (error: any) {
       console.error('Failed to load creators:', error);
@@ -129,6 +129,7 @@ export default function GoalModal({
           month: formData.month,
           ...(formData.userId ? { userId: formData.userId } : {}),
           ...(formData.creatorId ? { creatorId: formData.creatorId } : {}),
+          ...(formData.bonusAmount != null && formData.bonusAmount >= 0 ? { bonusAmount: formData.bonusAmount } : {}),
         };
         await goalService.createGoal(payload);
         toast.success('Goal created successfully');
@@ -273,7 +274,7 @@ export default function GoalModal({
                 className="input"
                 required
               >
-                <option value="0">Yearly Goal</option>
+                <option value="0">Full year (yearly)</option>
                 <option value="1">January</option>
                 <option value="2">February</option>
                 <option value="3">March</option>
@@ -307,12 +308,15 @@ export default function GoalModal({
               step="0.01"
               required
             />
+            <p className="text-xs text-gray-500 mt-1">
+              Revenue/sales/commission that must be reached (e.g. $10,000 for creator BIANCA).
+            </p>
           </div>
 
-          {/* Bonus (optional, mainly for achieved goals) */}
+          {/* Prize for chatters when target is reached */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Commission Bonus ($, optional)
+              Prize for chatters ($, optional)
             </label>
             <input
               type="number"
@@ -328,9 +332,66 @@ export default function GoalModal({
               step="0.01"
             />
             <p className="text-xs text-gray-500 mt-1">
-              Flat bonus in dollars that you plan to pay when this goal is reached.
+              $ bonus chatters receive when this target is reached.
             </p>
           </div>
+
+          {/* Preview: creator icon, target amount, prize (gift) */}
+          {(formData.creatorId || formData.target > 0 || (formData.bonusAmount != null && formData.bonusAmount > 0)) && (
+            <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 space-y-3">
+              <p className="text-sm font-semibold text-gray-700">Preview</p>
+              {formData.creatorId && (
+                <div className="flex items-center gap-2 p-2 rounded-lg bg-white border border-gray-100">
+                  {(() => {
+                    const selectedCreator = creators.find((c) => c.id === formData.creatorId);
+                    const name = selectedCreator?.name ?? 'Creator';
+                    const avatar = selectedCreator?.avatar;
+                    return (
+                      <>
+                        {avatar ? (
+                          <img
+                            src={avatar}
+                            alt={name}
+                            className="w-9 h-9 rounded-full object-cover ring-2 ring-white shadow-sm"
+                          />
+                        ) : (
+                          <div className="w-9 h-9 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 text-sm font-semibold">
+                            {name.charAt(0).toUpperCase()}
+                          </div>
+                        )}
+                        <div>
+                          <p className="text-xs text-gray-500 font-medium">Creator</p>
+                          <p className="text-sm font-semibold text-gray-900">{name}</p>
+                        </div>
+                      </>
+                    );
+                  })()}
+                </div>
+              )}
+              {formData.target > 0 && (
+                <div className="flex items-center gap-2 p-2 rounded-lg bg-white border border-gray-100">
+                  <Target className="w-5 h-5 text-primary-600 flex-shrink-0" />
+                  <div>
+                    <p className="text-xs text-gray-500 font-medium">Target amount to reach</p>
+                    <p className="text-sm font-bold text-gray-900">
+                      ${formData.target.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </p>
+                  </div>
+                </div>
+              )}
+              <div className="flex items-center gap-2 p-2 rounded-lg bg-white border border-gray-100">
+                <Gift className="w-5 h-5 text-amber-500 flex-shrink-0" />
+                <div>
+                  <p className="text-xs text-gray-500 font-medium">Prize when goal is reached</p>
+                  <p className="text-sm font-bold text-amber-700">
+                    {formData.bonusAmount != null && formData.bonusAmount > 0
+                      ? `$${formData.bonusAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} bonus for chatters`
+                      : 'No bonus set'}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Actions */}
           <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 sm:gap-3 pt-4 border-t border-gray-200">

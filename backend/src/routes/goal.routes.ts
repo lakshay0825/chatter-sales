@@ -20,6 +20,7 @@ const createGoalSchema = z.object({
     target: z.number().positive(),
     year: z.number().int().min(2000).max(2100),
     month: z.number().int().min(0).max(12),
+    bonusAmount: z.number().min(0).optional(),
   }),
 });
 

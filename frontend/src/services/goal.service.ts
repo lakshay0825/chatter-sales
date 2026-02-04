@@ -30,6 +30,7 @@ export interface CreateGoalData {
   target: number;
   year: number;
   month: number;
+  bonusAmount?: number;
 }
 
 export interface UpdateGoalData {

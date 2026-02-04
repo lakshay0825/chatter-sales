@@ -24,6 +24,8 @@ export interface AdminDashboardData {
     revenue: number;
     commission: number;
     fixedSalary: number;
+    totalBase: number;
+    totalRetribution: number;
   }>;
   totalCommissions: number;
   totalFixedSalaries?: number; // Total fixed salaries for agency earnings calculation
@@ -137,6 +139,7 @@ export interface ChatterDetailData {
   }>;
   totalSales: number;
   totalCommission: number;
+  totalRetribution?: number; // TOTAL BASE + FIXED SALARY + SALES COMMISSION (matches admin Revenue per Chatter)
   payments: Array<{
     id: string;
     amount: number;

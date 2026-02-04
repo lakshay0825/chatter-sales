@@ -148,32 +148,37 @@ export async function getAdminDashboard(month: number, year: number, cumulative:
     // SALES for creator/agency revenue should exclude BASE
     const revenue = sales._sum.amount || 0;
     const baseEarnings = sales._sum.baseAmount || 0;
-    
-    // Calculate commission based on compensation type
+    const totalBase = baseEarnings;
+
+    // Fixed salary for the period: one month or (cumulative) fixedSalary * months
+    let fixedSalaryForPeriod = chatter.fixedSalary ?? 0;
+    if (cumulative && (chatter.fixedSalary ?? 0) > 0) {
+      const startYear = startDate.getFullYear();
+      const startMonth = startDate.getMonth() + 1;
+      const endYear = endDate.getFullYear();
+      const endMonth = endDate.getMonth() + 1;
+      let months = 0;
+      for (let y = startYear; y <= endYear; y++) {
+        const monthStart = y === startYear ? startMonth : 1;
+        const monthEnd = y === endYear ? endMonth : 12;
+        months += monthEnd - monthStart + 1;
+      }
+      fixedSalaryForPeriod = (chatter.fixedSalary ?? 0) * months;
+    }
+
+    // Sales commission = percentage on variable sales only (excludes BASE and fixed salary)
+    const salesCommission = (revenue * (chatter.commissionPercent ?? 0)) / 100;
+
+    // Total retribution = TOTAL BASE + FIXED SALARY + SALES COMMISSION (matches chatter detail view)
+    const totalRetribution = totalBase + fixedSalaryForPeriod + salesCommission;
+
+    // Calculate commission (full) based on compensation type (for backward compatibility)
     let commission = 0;
     if (chatter.commissionPercent) {
-      // Percentage on variable sales only, BASE added 1:1
-      commission = (revenue * chatter.commissionPercent) / 100 + baseEarnings;
+      commission = salesCommission + baseEarnings;
     } else if (chatter.fixedSalary) {
-      // For cumulative view with fixed salary, calculate based on months
-      if (cumulative) {
-        const startYear = startDate.getFullYear();
-        const startMonth = startDate.getMonth() + 1;
-        const endYear = endDate.getFullYear();
-        const endMonth = endDate.getMonth() + 1;
-        
-        let months = 0;
-        for (let y = startYear; y <= endYear; y++) {
-          const monthStart = y === startYear ? startMonth : 1;
-          const monthEnd = y === endYear ? endMonth : 12;
-          months += (monthEnd - monthStart + 1);
-        }
-        commission = chatter.fixedSalary * months;
-      } else {
-        commission = chatter.fixedSalary;
-      }
+      commission = cumulative ? fixedSalaryForPeriod : chatter.fixedSalary;
     } else {
-      // Fallback to calculateCommission for monthly view
       commission = await calculateCommission(chatter.id, month, year);
     }
 
@@ -184,6 +189,8 @@ export async function getAdminDashboard(month: number, year: number, cumulative:
       revenue,
       commission,
       fixedSalary: chatter.fixedSalary ?? 0,
+      totalBase,
+      totalRetribution,
     });
   }
 
@@ -638,33 +645,26 @@ export async function getChatterDetail(
 
   // Calculate totals
   const totalSales = sales.reduce((sum, sale) => sum + sale.amount, 0);
-  
-  // Calculate total commission from sales
-  let totalCommission = 0;
   const totalVariableSales = sales.reduce((sum, sale) => sum + sale.amount, 0);
   const totalBaseEarnings = sales.reduce((sum, sale) => sum + (sale.baseAmount || 0), 0);
-  
-  if (user.commissionPercent !== null) {
-    totalCommission += (totalVariableSales * user.commissionPercent) / 100;
-  }
-  
-  if (user.fixedSalary !== null) {
-    // Calculate fixed salary for the date range
-    const daysInMonth = 30; // Approximate
-    totalCommission += (user.fixedSalary / daysInMonth) * daysDiff;
-  }
-  
-  // BASE earnings are always added 1:1
-  totalCommission += totalBaseEarnings;
-  
+
+  // Total retribution = TOTAL BASE + FIXED SALARY (for month) + SALES COMMISSION (matches admin Revenue per Chatter)
+  const fixedSalaryForMonth = user.fixedSalary ?? 0;
+  const salesCommission = (totalVariableSales * (user.commissionPercent ?? 0)) / 100;
+  const totalRetribution = totalBaseEarnings + fixedSalaryForMonth + salesCommission;
+
   const totalPayments = payments.reduce((sum, payment) => sum + payment.amount, 0);
-  const amountOwed = totalCommission - totalPayments;
+  // Amount owed = total retribution (for the month) minus payments, so it matches admin view
+  const amountOwed = totalRetribution - totalPayments;
+  // Keep totalCommission = totalRetribution for backward compatibility (same value for full month)
+  const totalCommission = totalRetribution;
 
   return {
     user,
     dailyBreakdown,
     totalSales,
     totalCommission,
+    totalRetribution,
     payments,
     totalPayments,
     amountOwed,

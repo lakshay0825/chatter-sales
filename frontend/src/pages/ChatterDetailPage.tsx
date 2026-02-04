@@ -249,10 +249,11 @@ export default function ChatterDetailPage() {
               <TrendingUp className="w-6 h-6 text-white" />
             </div>
           </div>
-          <h3 className="text-sm font-medium text-gray-600 mb-2">Total Commission</h3>
+          <h3 className="text-sm font-medium text-gray-600 mb-2">Total Retribution</h3>
           <p className="text-3xl font-bold text-gray-900">
-            ${detailData.totalCommission.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            ${(detailData.totalRetribution ?? detailData.totalCommission).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </p>
+          <p className="text-xs text-gray-500 mt-1">Sales commission + Total BASE + Fixed salary</p>
         </div>
 
         <div className="card bg-gradient-to-br from-purple-50 to-purple-100/50 border-purple-200">
@@ -345,6 +346,28 @@ export default function ChatterDetailPage() {
                       </td>
                     </tr>
                   ))}
+                  {/* Totals row */}
+                  {(() => {
+                    const totalCount = detailData.dailyBreakdown.reduce((sum, d) => sum + d.count, 0);
+                    const totalSales = detailData.dailyBreakdown.reduce((sum, d) => sum + d.sales, 0);
+                    const totalBase = detailData.dailyBreakdown.reduce((sum, d) => sum + d.baseEarnings, 0);
+                    const totalCommission = detailData.dailyBreakdown.reduce((sum, d) => sum + d.commission, 0);
+                    return (
+                      <tr className="bg-gray-100 font-semibold border-t-2 border-gray-300">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">TOTALS</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{totalCount}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                          ${totalSales.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                          ${totalBase.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-green-700">
+                          ${totalCommission.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </td>
+                      </tr>
+                    );
+                  })()}
                   {/* Average sales per day row: sum of daily sales / number of days worked (days with at least one sale) */}
                   {(() => {
                     const workedDays = detailData.dailyBreakdown.filter(

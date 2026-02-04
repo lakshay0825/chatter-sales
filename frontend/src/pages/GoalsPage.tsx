@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Target, Filter, Trash2, Edit2 } from 'lucide-react';
+import { Plus, Target, Filter, Trash2, Edit2, Gift } from 'lucide-react';
 import { goalService, Goal, GoalProgress } from '../services/goal.service';
 import { useAuthStore } from '../store/authStore';
 import { isAdmin } from '../utils/permissions';
@@ -176,7 +176,7 @@ export default function GoalsPage() {
               className="input"
             >
               <option value="">All Months</option>
-              <option value="0">Yearly Goals</option>
+              <option value="0">Full year (yearly)</option>
               <option value="1">January</option>
               <option value="2">February</option>
               <option value="3">March</option>
@@ -238,16 +238,50 @@ export default function GoalsPage() {
                     progress={progress}
                     creatorDetails={creatorDetails}
                     isChatterView={!isAdmin(user)}
+                    canEdit={isAdmin(user)}
                   />
                 ) : (
                   <div className="card">
-                    <div className="flex items-center gap-2 mb-4">
+                    {/* Top row: Creator (photo + name) + Prize (gift + amount) */}
+                    <div className="flex flex-wrap items-center gap-3 mb-4 pb-3 border-b border-gray-200">
+                      {(goal.creatorId || goal.creator) && (
+                        <div className="flex items-center gap-2">
+                          {creatorDetails?.avatar ? (
+                            <img
+                              src={creatorDetails.avatar}
+                              alt={creatorDetails.name}
+                              className="w-9 h-9 rounded-full object-cover ring-2 ring-white shadow-sm"
+                            />
+                          ) : (
+                            <div className="w-9 h-9 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 text-sm font-semibold ring-2 ring-white shadow-sm">
+                              {(creatorDetails?.name || goal.creator?.name || '?').charAt(0).toUpperCase()}
+                            </div>
+                          )}
+                          <div>
+                            <p className="text-xs text-gray-500 font-medium">Creator</p>
+                            <p className="text-sm font-semibold text-gray-900">{creatorDetails?.name || goal.creator?.name || 'Unknown'}</p>
+                          </div>
+                        </div>
+                      )}
+                      <div className="flex items-center gap-2">
+                        <Gift className="w-5 h-5 text-amber-500 flex-shrink-0" />
+                        <div>
+                          <p className="text-xs text-gray-500 font-medium">Prize when reached</p>
+                          <p className="text-sm font-bold text-amber-700">
+                            {goal.bonusAmount != null && goal.bonusAmount > 0
+                              ? `$${goal.bonusAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                              : 'No bonus set'}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 mb-2">
                       <Target className="w-5 h-5 text-primary-600" />
                       <h3 className="text-lg font-semibold text-gray-900">
                         {goal.type === 'SALES' ? 'Sales' : goal.type === 'COMMISSION' ? 'Commission' : 'Revenue'} Goal
                       </h3>
                     </div>
-                    <p className="text-sm text-gray-600 mb-2">
+                    <p className="text-sm text-gray-600 mb-1">
                       Target: ${goal.target.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </p>
                     <p className="text-xs text-gray-500">
@@ -281,6 +315,22 @@ export default function GoalsPage() {
           })}
         </div>
       )}
+
+      {/* How bonuses work */}
+      <div className="card bg-amber-50/50 border-amber-200">
+        <h2 className="text-lg font-semibold text-gray-900 mb-3">How bonuses work</h2>
+        <ul className="list-disc pl-5 space-y-2 text-sm text-gray-700">
+          <li>
+            <strong>Who gets the bonus:</strong> The prize on a goal is a <strong>$ bonus for chatters</strong> when the creator’s revenue (or sales) target is reached. The creator (e.g. BIANCA) is the account whose revenue we track; chatters earn the bonus when that target is hit.
+          </li>
+          <li>
+            <strong>How chatters know they got a bonus:</strong> On this Goals page, when a goal shows <strong>“Goal Achieved!”</strong> and a prize amount, that bonus is earned. The card will say <strong>“You earned a bonus!”</strong> and that the amount will appear in Payments once paid.
+          </li>
+          <li>
+            <strong>Where to check the bonus once it’s paid:</strong> Chatters see it in <strong>Dashboard (Chatter Detail) → Payment History</strong>. Admins pay the bonus by going to each chatter’s Chatter Detail and using <strong>Register Payment</strong>; that payment then appears in that chatter’s Payment History.
+          </li>
+        </ul>
+      </div>
 
       {/* Goal Modal */}
       <GoalModal
