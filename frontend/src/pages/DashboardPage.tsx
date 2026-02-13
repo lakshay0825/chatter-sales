@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from 'recharts';
 import { Lock } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
-import { useNavigate } from 'react-router-dom';
 import { dashboardService, ChatterDashboardData } from '../services/dashboard.service';
 import { getCurrentMonthYear, getMonthName, formatItalianDate } from '../utils/date';
 import { parseISO } from 'date-fns';
@@ -12,6 +12,15 @@ import { getUserFriendlyError } from '../utils/errorHandler';
 export default function DashboardPage() {
   const { user } = useAuthStore();
   const navigate = useNavigate();
+
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  // Admins should use the Admin Recap dashboard
+  if (user.role === 'ADMIN') {
+    return <Navigate to="/admin" replace />;
+  }
 
   // For chatters, prefer the new detailed dashboard
   useEffect(() => {

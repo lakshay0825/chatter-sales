@@ -22,7 +22,13 @@ import SettingsPage from './pages/SettingsPage';
 import ChatterDetailPage from './pages/ChatterDetailPage';
 
 function App() {
-  const { checkAuth, isAuthenticated, isLoading } = useAuthStore();
+  const { checkAuth, isAuthenticated, isLoading, user } = useAuthStore();
+  const getDefaultPath = () => {
+    if (!user) return '/dashboard';
+    if (user.role === 'ADMIN') return '/admin';
+    return `/chatter/${user.id}`;
+  };
+
 
   useEffect(() => {
     checkAuth();
@@ -40,7 +46,7 @@ function App() {
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
               </div>
             ) : isAuthenticated ? (
-              <Navigate to="/dashboard" replace />
+              <Navigate to={getDefaultPath()} replace />
             ) : (
               <LoginPage />
             )
@@ -54,7 +60,7 @@ function App() {
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
               </div>
             ) : isAuthenticated ? (
-              <Navigate to="/dashboard" replace />
+              <Navigate to={getDefaultPath()} replace />
             ) : (
               <RegisterPage />
             )
@@ -68,7 +74,7 @@ function App() {
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
               </div>
             ) : isAuthenticated ? (
-              <Navigate to="/dashboard" replace />
+              <Navigate to={getDefaultPath()} replace />
             ) : (
               <ForgotPasswordPage />
             )
@@ -96,7 +102,7 @@ function App() {
             </ProtectedRoute>
           }
         >
-          <Route index element={<Navigate to="/dashboard" replace />} />
+          <Route index element={<Navigate to={getDefaultPath()} replace />} />
           <Route path="dashboard" element={<DashboardPage />} />
           <Route path="sales" element={<SalesPage />} />
           <Route path="shifts" element={<ShiftsPage />} />

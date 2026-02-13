@@ -103,8 +103,8 @@ export async function getAdminDashboard(month: number, year: number, cumulative:
   let endDate: Date;
   
   if (cumulative) {
-    // Cumulative: from the beginning of time to the end of selected month
-    startDate = new Date(2000, 0, 1); // Start from year 2000
+    // YTD: from the beginning of the selected year to the end of selected month
+    startDate = new Date(year, 0, 1);
     endDate = new Date(year, month, 0, 23, 59, 59, 999);
   } else {
     // Monthly: just the selected month

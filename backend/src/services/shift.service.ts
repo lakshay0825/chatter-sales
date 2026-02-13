@@ -106,6 +106,59 @@ export async function getShiftById(shiftId: string) {
 }
 
 /**
+ * Normalize a date to end of that calendar day in UTC (23:59:59.999).
+ * Ensures the full last day is included when filtering by range (e.g. week including Sunday),
+ * regardless of client timezone (e.g. endDate sent as 2026-02-22T18:29:59.999Z).
+ */
+function endOfDayUTC(d: Date): Date {
+  const date = d instanceof Date ? d : new Date(d);
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), 23, 59, 59, 999));
+}
+
+/** Add N days in UTC and return the result as UTC midnight (avoids month overflow from day-of-month math). */
+function addDaysUTC(date: Date, days: number): Date {
+  const d = new Date(date.getTime() + days * 24 * 60 * 60 * 1000);
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 0, 0, 0, 0));
+}
+
+/**
+ * Given a week start coming from the frontend (which is Monday in the user's local timezone,
+ * serialized to ISO), compute the corresponding Monday 00:00 UTC for that visual week.
+ *
+ * - If the UTC day is Monday (1), use that day.
+ * - If the UTC day is Sunday (0), treat it as "Monday of the next day" (common when client is ahead of UTC).
+ * - Otherwise, fall back to shifting to the nearest previous Monday.
+ */
+function getMondayUTCFromClientWeekDate(d: Date): Date {
+  const base = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 0, 0, 0, 0));
+  const utcDay = d.getUTCDay(); // 0 = Sunday, 1 = Monday, ...
+
+  if (utcDay === 1) {
+    // Already Monday in UTC
+    return base;
+  }
+  if (utcDay === 0) {
+    // Sunday in UTC, but the client intended Monday in a timezone ahead of UTC (e.g. UTC+5:30),
+    // so shift to next day which is Monday.
+    return addDaysUTC(base, 1);
+  }
+
+  // Generic case: shift back to the previous Monday.
+  return addDaysUTC(base, 1 - utcDay);
+}
+
+/** Get template for a day; if Sunday (0) is missing, use Saturday (6) so Sunday always gets shifts. */
+function getDayTemplate(
+  template: { [dayOfWeek: number]: { [startTime: string]: string[] } },
+  dayOfWeek: number
+): { [startTime: string]: string[] } {
+  const day = template[dayOfWeek];
+  if (day && Object.keys(day).length > 0) return day;
+  if (dayOfWeek === 0) return template[6] || {};
+  return {};
+}
+
+/**
  * Get shifts with filters
  */
 export async function getShifts(query: GetShiftsQuery) {
@@ -116,7 +169,8 @@ export async function getShifts(query: GetShiftsQuery) {
   if (startDate || endDate) {
     where.date = {};
     if (startDate) where.date.gte = startDate;
-    if (endDate) where.date.lte = endDate;
+    // Normalize endDate to end of that day in UTC so the last day (e.g. Sunday) is always included
+    if (endDate) where.date.lte = endOfDayUTC(endDate);
   }
 
   if (userId) where.userId = userId;
@@ -269,19 +323,28 @@ export async function autoGenerateWeeklyShifts(
     '09:00': '14:30',
     '14:30': '20:00',
     '20:00': '01:00',
+    '01:00': '09:00', // Night shift: 01:00–09:00
   };
 
-  // Generate shifts for each day of the week (Monday to Sunday)
+  // Normalize week start to Monday 00:00 UTC so adding 0..6 days gives Mon..Sun in UTC (no skipped day).
+  const w = weekStartDate instanceof Date ? weekStartDate : new Date(weekStartDate);
+  const utcDay = w.getUTCDay();
+  const diffToMonday = utcDay === 0 ? -6 : 1 - utcDay;
+  const mondayUTC = new Date(Date.UTC(
+    w.getUTCFullYear(),
+    w.getUTCMonth(),
+    w.getUTCDate() + diffToMonday,
+    0, 0, 0, 0
+  ));
+
+  // Generate shifts for each day of the week (Monday to Sunday) using UTC day-add (no month overflow)
   for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
-    const currentDate = new Date(weekStartDate);
-    currentDate.setDate(currentDate.getDate() + dayOffset);
-    
-    // Get day of week (0 = Sunday, 1 = Monday, etc.)
-    const dayOfWeek = currentDate.getDay();
-    
-    // Get template for this day
-    const dayTemplate = template[dayOfWeek] || {};
-    
+    const normalizedDate = addDaysUTC(mondayUTC, dayOffset);
+
+    // Get day of week (0 = Sunday, 1 = Monday, etc.); use Saturday template for Sunday if missing
+    const dayOfWeek = normalizedDate.getUTCDay();
+    const dayTemplate = getDayTemplate(template, dayOfWeek);
+
     // Create shifts for each time slot
     for (const [startTime, userIds] of Object.entries(dayTemplate)) {
       const endTime = shiftTimes[startTime];
@@ -292,7 +355,7 @@ export async function autoGenerateWeeklyShifts(
         const existingShift = await prisma.shift.findFirst({
           where: {
             userId,
-            date: currentDate,
+            date: normalizedDate,
             startTime: startTime as any,
           },
         });
@@ -317,7 +380,7 @@ export async function autoGenerateWeeklyShifts(
         const shift = await prisma.shift.create({
           data: {
             userId,
-            date: currentDate,
+            date: normalizedDate,
             startTime: startTime as any,
             endTime: endTime as any,
             createdBy,
@@ -397,16 +460,17 @@ export async function extractTemplateFromWeek(
   if (isNaN(weekStart.getTime())) {
     throw new Error('Invalid week start date');
   }
-  
-  const weekEnd = new Date(weekStart);
-  weekEnd.setDate(weekEnd.getDate() + 6);
-  
-  // Get all shifts for this week
+
+  // Normalize to Monday 00:00 UTC and Sunday 23:59:59.999 UTC for the *visual* week the user selected.
+  const mondayUTC = getMondayUTCFromClientWeekDate(weekStart);
+  const sundayEndUTC = endOfDayUTC(addDaysUTC(mondayUTC, 6));
+
+  // Get all shifts for this week (Mon 00:00 UTC through Sun 23:59:59 UTC)
   const shifts = await prisma.shift.findMany({
     where: {
       date: {
-        gte: weekStart,
-        lte: weekEnd,
+        gte: mondayUTC,
+        lte: sundayEndUTC,
       },
     },
     orderBy: [
@@ -420,7 +484,7 @@ export async function extractTemplateFromWeek(
   
   for (const shift of shifts) {
     const shiftDate = new Date(shift.date);
-    const dayOfWeek = shiftDate.getDay(); // 0 = Sunday, 1 = Monday, etc.
+    const dayOfWeek = shiftDate.getUTCDay(); // 0 = Sunday, 1 = Monday (UTC for consistency with generation)
     
     if (!template[dayOfWeek]) {
       template[dayOfWeek] = {};
@@ -454,65 +518,36 @@ export async function generateShiftsForYear(
     '09:00': '14:30',
     '14:30': '20:00',
     '20:00': '01:00',
+    '01:00': '09:00', // Night shift: 01:00–09:00
   };
-  
-  // Ensure templateWeekStartDate is a Date object
-  let weekStartDate: Date;
+
+  // Ensure templateWeekStartDate is a Date object and normalize it to Monday of that week.
+  let templateWeekStart: Date;
   if (templateWeekStartDate instanceof Date) {
-    weekStartDate = templateWeekStartDate;
+    templateWeekStart = new Date(templateWeekStartDate);
   } else if (typeof templateWeekStartDate === 'string') {
-    weekStartDate = new Date(templateWeekStartDate);
+    templateWeekStart = new Date(templateWeekStartDate);
   } else {
-    weekStartDate = new Date(templateWeekStartDate);
+    templateWeekStart = new Date(templateWeekStartDate);
   }
-  
-  // Validate the date
-  if (isNaN(weekStartDate.getTime())) {
+
+  if (isNaN(templateWeekStart.getTime())) {
     throw new Error('Invalid template week start date');
   }
-  
-  // Get the year from the template week
-  const year = weekStartDate.getFullYear();
-  
-  // Find the first Monday of the year (or the Monday of the template week if it's in the future)
-  const firstDayOfYear = new Date(year, 0, 1);
-  let firstMonday = new Date(firstDayOfYear);
-  
-  // If template week is in the current year and after Jan 1, use it as starting point
-  if (weekStartDate.getFullYear() === year && weekStartDate >= firstDayOfYear) {
-    // Get Monday of the template week
-    firstMonday = new Date(weekStartDate);
-    const dayOfWeek = firstMonday.getDay();
-    const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek; // Adjust to Monday
-    firstMonday.setDate(firstMonday.getDate() + diff);
-  } else {
-    // Find first Monday of the year
-    const dayOfWeek = firstDayOfYear.getDay();
-    const diff = dayOfWeek === 0 ? 1 : 8 - dayOfWeek; // Days to add to get to Monday
-    firstMonday.setDate(firstDayOfYear.getDate() + diff);
-  }
-  
-  // Generate shifts for 52 weeks
+
+  // Normalize to Monday 00:00 UTC of the *visual* template week the user selected (same logic as extraction).
+  const mondayUTC = getMondayUTCFromClientWeekDate(templateWeekStart);
+
+  // Generate shifts for 52 consecutive weeks; add days by time so month boundaries are correct (no skipped 22nd).
   for (let week = 0; week < 52; week++) {
-    const weekStart = new Date(firstMonday);
-    weekStart.setDate(weekStart.getDate() + (week * 7));
-    
-    // Generate shifts for each day of the week
+    const weekStart = addDaysUTC(mondayUTC, week * 7);
     for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
-      const currentDate = new Date(weekStart);
-      currentDate.setDate(currentDate.getDate() + dayOffset);
-      
-      // Skip if date is in the past (before template week)
-      if (currentDate < weekStartDate) {
-        continue;
-      }
-      
-      // Get day of week (0 = Sunday, 1 = Monday, etc.)
-      const dayOfWeek = currentDate.getDay();
-      
-      // Get template for this day
-      const dayTemplate = template[dayOfWeek] || {};
-      
+      const normalizedDate = addDaysUTC(weekStart, dayOffset);
+
+      // Get day of week (0 = Sunday, 1 = Monday, etc.); use Saturday template for Sunday if missing
+      const dayOfWeek = normalizedDate.getUTCDay();
+      const dayTemplate = getDayTemplate(template, dayOfWeek);
+
       // Create shifts for each time slot
       for (const [startTime, userIds] of Object.entries(dayTemplate)) {
         const endTime = shiftTimes[startTime];
@@ -523,7 +558,7 @@ export async function generateShiftsForYear(
           const existingShift = await prisma.shift.findFirst({
             where: {
               userId,
-              date: currentDate,
+              date: normalizedDate,
               startTime: startTime as any,
             },
           });
@@ -548,7 +583,7 @@ export async function generateShiftsForYear(
           const shift = await prisma.shift.create({
             data: {
               userId,
-              date: currentDate,
+              date: normalizedDate,
               startTime: startTime as any,
               endTime: endTime as any,
               createdBy,

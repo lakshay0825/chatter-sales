@@ -118,7 +118,7 @@ export default function AdminDashboardPage() {
                   : 'text-gray-600 hover:text-gray-900'
               }`}
             >
-              Cumulative
+              YTD
             </button>
           </div>
           <select
@@ -409,8 +409,8 @@ export default function AdminDashboardPage() {
           </li>
           <li>
             <span className="font-semibold">Agency Earnings</span> is the sum of creator-level Agency Profit
-            (Net Revenue minus marketing costs, Infloww costs, and custom costs only; Chatter Commissions are shown
-            separately and are not subtracted from Agency Profit), minus fixed salaries paid to chatters.
+            (Net Revenue minus chatters commissions, marketing costs, Infloww costs, and custom costs only),
+            minus monthly fixed salaries paid to chatters and chatter managers.
           </li>
           <li>
             <span className="font-semibold">Fixed Salaries</span> are monthly fixed payments to chatters that are

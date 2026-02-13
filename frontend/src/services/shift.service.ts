@@ -57,8 +57,12 @@ export const shiftService = {
     overwriteExisting: boolean = false,
     generateForYear: boolean = false
   ): Promise<Shift[]> {
+    // Send a date-only value so the backend sees the same visual Monday
+    // regardless of the browser's timezone (e.g. 2026‑02‑09 instead of 2026‑02‑08T18:30Z).
+    const weekStartDateOnly = weekStartDate.toISOString().split('T')[0]; // 'YYYY-MM-DD'
+
     const response = await api.post<ApiResponse<Shift[]>>('/shifts/auto-generate', {
-      weekStartDate: weekStartDate.toISOString(),
+      weekStartDate: weekStartDateOnly,
       userIds,
       overwriteExisting,
       generateForYear,

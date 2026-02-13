@@ -398,23 +398,15 @@ export default function CreatorsPage() {
               </div>
 
               <div className="flex items-center gap-2 mt-4 pt-4 border-t border-gray-200 flex-wrap">
+                {/* Single upload button for creator image (profile/ID handled behind the scenes) */}
                 <button
                   onClick={() => handleFileSelect(creator.id, 'avatar')}
-                  disabled={uploadingAvatar === creator.id}
+                  disabled={uploadingAvatar === creator.id || uploadingPhoto === creator.id}
                   className="btn btn-secondary flex items-center justify-center gap-2 disabled:opacity-50"
-                  title="Upload profile photo"
+                  title="Upload creator picture"
                 >
                   <Upload className="w-4 h-4" />
-                  {uploadingAvatar === creator.id ? 'Uploading...' : 'Upload Photo'}
-                </button>
-                <button
-                  onClick={() => handleFileSelect(creator.id, 'identification')}
-                  disabled={uploadingPhoto === creator.id}
-                  className="btn btn-secondary flex items-center justify-center gap-2 disabled:opacity-50"
-                  title="Upload identification photo"
-                >
-                  <Upload className="w-4 h-4" />
-                  {uploadingPhoto === creator.id ? 'Uploading...' : 'Upload ID Photo'}
+                  {uploadingAvatar === creator.id || uploadingPhoto === creator.id ? 'Uploading...' : 'Upload Picture'}
                 </button>
                 <button
                   onClick={() => {

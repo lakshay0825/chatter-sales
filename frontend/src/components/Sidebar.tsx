@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, ShoppingCart, Calendar, Users, UserCog, BarChart3, BookOpen, Settings, X, TrendingUp, Target, FileText } from 'lucide-react';
+import { LayoutDashboard, ShoppingCart, Calendar, Users, UserCog, BookOpen, Settings, X, TrendingUp, Target, FileText } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { UserRole } from '../types';
 
@@ -12,8 +12,14 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
   const { user } = useAuthStore();
   const isAdmin = user?.role === UserRole.ADMIN;
 
-  // Chatters and chatter managers: default dashboard is their detail page (graph, daily sales, payments)
-  const dashboardPath = !isAdmin && user?.id ? `/chatter/${user.id}` : '/dashboard';
+  // Default dashboard:
+  // - Admins: Admin Recap
+  // - Chatters/Managers: their own chatter detail page (graph, daily sales, payments)
+  const dashboardPath = isAdmin
+    ? '/admin'
+    : user?.id
+    ? `/chatter/${user.id}`
+    : '/dashboard';
   const navItems = [
     { path: dashboardPath, label: 'Dashboard', icon: LayoutDashboard },
     { path: '/sales', label: 'Sales Report', icon: ShoppingCart },
@@ -28,7 +34,6 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
           { path: '/creators', label: 'Creators', icon: UserCog },
         ]
       : []),
-    ...(isAdmin ? [{ path: '/admin', label: 'Admin Recap', icon: BarChart3 }] : []),
     { path: '/settings', label: 'Settings', icon: Settings },
   ];
 
