@@ -39,9 +39,9 @@ export async function getAdminDashboardHandler(
   }
 
   const now = new Date();
-  const month = request.query.month ? parseInt(request.query.month) : now.getMonth() + 1;
-  const year = request.query.year ? parseInt(request.query.year) : now.getFullYear();
-  const cumulative = request.query.cumulative === 'true';
+  const month = request.query.month ? parseInt(request.query.month, 10) : now.getMonth() + 1;
+  const year = request.query.year ? parseInt(request.query.year, 10) : now.getFullYear();
+  const cumulative = String(request.query.cumulative ?? '').toLowerCase() === 'true';
 
   const dashboard = await getAdminDashboard(month, year, cumulative);
 

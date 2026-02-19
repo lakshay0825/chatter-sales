@@ -36,8 +36,10 @@ export default function AdminDashboardPage() {
   const loadDashboard = async () => {
     setIsLoading(true);
     try {
+      // YTD = full year (Jan–Dec); pass month=12. Monthly = specific month.
+      const month = viewMode === 'cumulative' ? 12 : selectedMonth;
       const data = await dashboardService.getAdminDashboard(
-        selectedMonth,
+        month,
         selectedYear,
         viewMode === 'cumulative'
       );
@@ -90,8 +92,9 @@ export default function AdminDashboardPage() {
   
   const hasNoData = safeDashboardData.chatterRevenue.length === 0 && safeDashboardData.creatorFinancials.length === 0;
 
-  // Generate month options
   const months = Array.from({ length: 12 }, (_, i) => i + 1);
+  const currentYear = new Date().getFullYear();
+  const years = Array.from({ length: currentYear - 2019 }, (_, i) => currentYear - i);
 
   return (
     <div className="space-y-6">
@@ -121,21 +124,44 @@ export default function AdminDashboardPage() {
               YTD
             </button>
           </div>
-          <select
-            value={`${selectedMonth}-${selectedYear}`}
-            onChange={(e) => {
-              const [month, year] = e.target.value.split('-').map(Number);
-              setSelectedMonth(month);
-              setSelectedYear(year);
-            }}
-            className="input w-auto"
-          >
-            {months.map((month) => (
-              <option key={month} value={`${month}-${selectedYear}`}>
-                {getMonthName(month)} {selectedYear}
-              </option>
-            ))}
-          </select>
+          {viewMode === 'monthly' ? (
+            <>
+              <select
+                value={selectedMonth}
+                onChange={(e) => setSelectedMonth(Number(e.target.value))}
+                className="input w-auto"
+              >
+                {months.map((month) => (
+                  <option key={month} value={month}>
+                    {getMonthName(month)}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={selectedYear}
+                onChange={(e) => setSelectedYear(Number(e.target.value))}
+                className="input w-auto"
+              >
+                {years.map((year) => (
+                  <option key={year} value={year}>
+                    {year}
+                  </option>
+                ))}
+              </select>
+            </>
+          ) : (
+            <select
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(Number(e.target.value))}
+              className="input w-auto"
+            >
+              {years.map((year) => (
+                <option key={year} value={year}>
+                  {year}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
       </div>
 

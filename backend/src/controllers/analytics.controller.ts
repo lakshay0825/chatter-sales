@@ -11,6 +11,7 @@ import {
   getDailyRevenueBreakdown,
   getWeeklyRevenueBreakdown,
   getMonthlyRevenueBreakdown,
+  getMonthlySalesHeatmap,
   getAvailableYears,
   getDateRangeRevenueBreakdown,
 } from '../services/analytics.service';
@@ -237,6 +238,28 @@ export async function getMonthlyRevenueBreakdownHandler(
   const response: ApiResponse<typeof breakdown> = {
     success: true,
     data: breakdown,
+  };
+
+  return reply.code(200).send(response);
+}
+
+export async function getMonthlySalesHeatmapHandler(
+  request: FastifyRequest<{ Querystring: { month?: string; year?: string; userId?: string } }>,
+  reply: FastifyReply
+) {
+  if (!request.user) {
+    return reply.code(401).send({ success: false, error: 'Unauthorized' });
+  }
+
+  const month = request.query.month ? parseInt(request.query.month, 10) : new Date().getMonth() + 1;
+  const year = request.query.year ? parseInt(request.query.year, 10) : new Date().getFullYear();
+  const userId = request.query.userId || (request.user.role === 'CHATTER' ? request.user.userId : undefined);
+
+  const heatmap = await getMonthlySalesHeatmap(month, year, userId);
+
+  const response: ApiResponse<typeof heatmap> = {
+    success: true,
+    data: heatmap,
   };
 
   return reply.code(200).send(response);

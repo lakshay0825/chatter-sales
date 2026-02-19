@@ -103,9 +103,9 @@ export async function getAdminDashboard(month: number, year: number, cumulative:
   let endDate: Date;
   
   if (cumulative) {
-    // YTD: from the beginning of the selected year to the end of selected month
+    // YTD: full year Jan 1 – Dec 31 (same pattern as monthly, which works)
     startDate = new Date(year, 0, 1);
-    endDate = new Date(year, month, 0, 23, 59, 59, 999);
+    endDate = new Date(year, 11, 31, 23, 59, 59, 999);
   } else {
     // Monthly: just the selected month
     startDate = new Date(year, month - 1, 1);
@@ -128,26 +128,37 @@ export async function getAdminDashboard(month: number, year: number, cumulative:
     },
   });
 
+  // For YTD: use raw SQL with inline date strings (matches DB query that works)
+  const safeYear = Math.min(2100, Math.max(2000, Number(year)));
+  const ytdStartStr = `${safeYear}-01-01`;
+  const ytdEndStr = `${safeYear}-12-31 23:59:59`;
+  const useRawSqlForYtd = cumulative;
+
   // Calculate revenue and commissions per chatter
   const chatterRevenue: any[] = [];
   for (const chatter of chatters) {
-    const sales = await prisma.sale.aggregate({
-      where: {
-        userId: chatter.id,
-        saleDate: {
-          gte: startDate,
-          lte: endDate,
-        },
-      },
-      _sum: {
-        amount: true,
-        baseAmount: true,
-      },
-    });
+    let revenue = 0;
+    let baseEarnings = 0;
 
-    // SALES for creator/agency revenue should exclude BASE
-    const revenue = sales._sum.amount || 0;
-    const baseEarnings = sales._sum.baseAmount || 0;
+    if (useRawSqlForYtd) {
+      const rows = await prisma.$queryRawUnsafe<{ totalAmount: unknown; totalBase: unknown }[]>(
+        `SELECT COALESCE(SUM(amount), 0) as totalAmount, COALESCE(SUM(COALESCE(baseAmount, 0)), 0) as totalBase
+         FROM sales WHERE userId = ? AND saleDate >= '${ytdStartStr}' AND saleDate <= '${ytdEndStr}'`,
+        chatter.id
+      );
+      revenue = Number(rows[0]?.totalAmount ?? 0);
+      baseEarnings = Number(rows[0]?.totalBase ?? 0);
+    } else {
+      const sales = await prisma.sale.aggregate({
+        where: {
+          userId: chatter.id,
+          saleDate: { gte: startDate, lte: endDate },
+        },
+        _sum: { amount: true, baseAmount: true },
+      });
+      revenue = sales._sum.amount || 0;
+      baseEarnings = sales._sum.baseAmount || 0;
+    }
     const totalBase = baseEarnings;
 
     // Fixed salary for the period: one month or (cumulative) fixedSalary * months
@@ -179,7 +190,8 @@ export async function getAdminDashboard(month: number, year: number, cumulative:
     } else if (chatter.fixedSalary) {
       commission = cumulative ? fixedSalaryForPeriod : chatter.fixedSalary;
     } else {
-      commission = await calculateCommission(chatter.id, month, year);
+      // Neither percent nor fixed: commission = BASE only; use baseEarnings (already from full date range)
+      commission = baseEarnings;
     }
 
     chatterRevenue.push({
@@ -200,26 +212,18 @@ export async function getAdminDashboard(month: number, year: number, cumulative:
   let totalOwedToChatters: number = 0;
   
   if (cumulative) {
-    // For cumulative, sum all commissions from start date to end date
+    // For cumulative, sum all commissions from start date to end date (raw SQL for YTD)
     totalCommissions = 0;
     for (const chatter of chatters) {
-      // Get all sales for this chatter in the date range
-      const sales = await prisma.sale.aggregate({
-        where: {
-          userId: chatter.id,
-          saleDate: {
-            gte: startDate,
-            lte: endDate,
-          },
-        },
-        _sum: {
-          amount: true,
-          baseAmount: true,
-        },
-      });
-      
-      const revenue = sales._sum.amount || 0;
-      const baseAmount = sales._sum.baseAmount || 0;
+      let revenue = 0;
+      let baseAmount = 0;
+      const rows = await prisma.$queryRawUnsafe<{ totalAmount: unknown; totalBase: unknown }[]>(
+        `SELECT COALESCE(SUM(amount), 0) as totalAmount, COALESCE(SUM(COALESCE(baseAmount, 0)), 0) as totalBase
+         FROM sales WHERE userId = ? AND saleDate >= '${ytdStartStr}' AND saleDate <= '${ytdEndStr}'`,
+        chatter.id
+      );
+      revenue = Number(rows[0]?.totalAmount ?? 0);
+      baseAmount = Number(rows[0]?.totalBase ?? 0);
       
       // Calculate commission based on compensation type
       if (chatter.commissionPercent) {
@@ -244,7 +248,17 @@ export async function getAdminDashboard(month: number, year: number, cumulative:
       } else {
         totalCommissions += baseAmount;
       }
-  }
+    }
+
+    // YTD: amount owed = total commissions minus payments (raw SQL for date range)
+    const chatterIds = chatters.map((c) => c.id);
+    const placeholders = chatterIds.map(() => '?').join(',');
+    const paymentsRows = await prisma.$queryRawUnsafe<{ totalAmount: unknown }[]>(
+      `SELECT COALESCE(SUM(amount), 0) as totalAmount FROM payments WHERE userId IN (${placeholders}) AND paymentDate >= '${ytdStartStr}' AND paymentDate <= '${ytdEndStr}'`,
+      ...chatterIds
+    );
+    const totalPayments = Number(paymentsRows[0]?.totalAmount ?? 0);
+    totalOwedToChatters = totalCommissions - totalPayments;
   } else {
     totalCommissions = await calculateTotalCommissions(month, year);
     // Calculate total fixed salaries for the month
@@ -276,45 +290,47 @@ export async function getAdminDashboard(month: number, year: number, cumulative:
   }
 
   // Get creator-level financial data
+  // For YTD: fetch sales via raw SQL (Prisma Date filter fails for year range), then join manually
+  let ytdSalesByCreator: Map<string, Array<{ userId: string; amount: number; baseAmount: number; commissionPercent: number | null }>> = new Map();
+
+  if (cumulative) {
+    const ytdSalesRows = await prisma.$queryRawUnsafe<
+      Array<{ creatorId: string; userId: string; amount: unknown; baseAmount: unknown; commissionPercent: number | null }>
+    >(
+      `SELECT s.creatorId, s.userId, s.amount, COALESCE(s.baseAmount, 0) as baseAmount, u.commissionPercent
+       FROM sales s
+       JOIN users u ON u.id = s.userId
+       WHERE s.saleDate >= '${ytdStartStr}' AND s.saleDate <= '${ytdEndStr}'`
+    );
+    for (const row of ytdSalesRows) {
+      const list = ytdSalesByCreator.get(row.creatorId) || [];
+      list.push({
+        userId: row.userId,
+        amount: Number(row.amount),
+        baseAmount: Number(row.baseAmount),
+        commissionPercent: row.commissionPercent,
+      });
+      ytdSalesByCreator.set(row.creatorId, list);
+    }
+  }
+
   const creators = await prisma.creator.findMany({
     where: { isActive: true },
     include: {
       monthlyFinancials: {
-        where: cumulative
-          ? {
-              // For cumulative, get all financials up to the selected month
-              year: {
-                lte: year,
-              },
-              OR: [
-                { year: { lt: year } },
-                { year, month: { lte: month } },
-              ],
-            }
-          : {
-              year,
-              month,
-            },
+        where: cumulative ? { year } : { year, month },
       },
-      sales: {
-        where: {
-          saleDate: {
-            gte: startDate,
-            lte: endDate,
+      ...(cumulative ? {} : {
+        sales: {
+          where: { saleDate: { gte: startDate, lte: endDate } },
+          select: {
+            amount: true,
+            baseAmount: true,
+            userId: true,
+            user: { select: { commissionPercent: true, fixedSalary: true } },
           },
         },
-        select: {
-          amount: true,
-          baseAmount: true,
-          userId: true,
-          user: {
-            select: {
-              commissionPercent: true,
-              fixedSalary: true,
-            },
-          },
-        },
-      },
+      }),
     },
   });
 
@@ -376,10 +392,10 @@ export async function getAdminDashboard(month: number, year: number, cumulative:
 
     // Calculate total sales amount for this creator in the selected period
     // SALES for creator earnings should exclude BASE – BASE is chatter-only
-    const totalSalesAmount = creator.sales.reduce(
-      (sum, sale) => sum + sale.amount,
-      0
-    );
+    const creatorSales = cumulative
+      ? (ytdSalesByCreator.get(creator.id) || []).map((s) => ({ amount: s.amount, baseAmount: s.baseAmount, user: { commissionPercent: s.commissionPercent } }))
+      : (creator.sales || []);
+    const totalSalesAmount = creatorSales.reduce((sum: number, sale: { amount: number }) => sum + sale.amount, 0);
 
     // Get OnlyFans commission percent (default to 20% if not set)
     const onlyfansCommissionPercent = creator.onlyfansCommissionPercent ?? 20;
@@ -403,7 +419,7 @@ export async function getAdminDashboard(month: number, year: number, cumulative:
     if (creator.compensationType === 'PERCENTAGE' && creator.revenueSharePercent) {
       creatorEarnings = (revenueAfterOnlyFans20 * creator.revenueSharePercent) / 100;
     } else if (creator.compensationType === 'SALARY' && creator.fixedSalaryCost) {
-      creatorEarnings = creator.fixedSalaryCost;
+      creatorEarnings = cumulative ? creator.fixedSalaryCost * 12 : creator.fixedSalaryCost;
     }
 
     // Calculate net revenue from the agency perspective:
@@ -421,13 +437,12 @@ export async function getAdminDashboard(month: number, year: number, cumulative:
     //   - BASE earnings are added 1:1
     // Fixed salaries are NOT included here (handled separately in total commissions).
     let chatterCommissions = 0;
-    for (const sale of creator.sales) {
-      if (sale.user && sale.user.commissionPercent) {
+    for (const sale of creatorSales) {
+      const commissionPercent = (sale as { user?: { commissionPercent?: number } }).user?.commissionPercent;
+      if (commissionPercent) {
         const variableAmount = sale.amount;
         const baseEarnings = sale.baseAmount || 0;
-        chatterCommissions +=
-          (variableAmount * sale.user.commissionPercent) / 100 +
-          baseEarnings;
+        chatterCommissions += (variableAmount * commissionPercent) / 100 + baseEarnings;
       }
     }
     
@@ -469,7 +484,7 @@ export async function getAdminDashboard(month: number, year: number, cumulative:
     year,
     chatterRevenue,
     totalCommissions,
-    totalFixedSalaries, // Add total fixed salaries for agency earnings calculation
+    totalFixedSalaries,
     totalOwedToChatters,
     creatorFinancials,
   };

@@ -722,6 +722,78 @@ export async function getMonthlyRevenueBreakdown(
   };
 }
 
+/** Time slot labels for heatmap (UTC hours) */
+const HEATMAP_TIME_SLOTS = [
+  '00:00–05:59',
+  '06:00–11:59',
+  '12:00–17:59',
+  '18:00–23:59',
+];
+
+/**
+ * Get monthly sales heatmap: total $ by day of week (Mon–Sun) and time of day.
+ * Used in Analytics Monthly view to show when sales concentrate.
+ */
+export async function getMonthlySalesHeatmap(
+  month: number,
+  year: number,
+  userId?: string
+) {
+  const startDate = new Date(year, month - 1, 1);
+  startDate.setHours(0, 0, 0, 0);
+  const endDate = new Date(year, month, 0, 23, 59, 59, 999);
+
+  const whereClause: any = {
+    saleDate: { gte: startDate, lte: endDate },
+  };
+  if (userId) whereClause.userId = userId;
+
+  const sales = await prisma.sale.findMany({
+    where: whereClause,
+    select: { saleDate: true, amount: true },
+  });
+
+  // dayOfWeek: 0 = Sun, 1 = Mon, ... in JS. We want Mon=0..Sun=6 for display.
+  const dayIndex = (utcDay: number) => (utcDay + 6) % 7;
+  const timeSlot = (utcHour: number) => {
+    if (utcHour < 6) return 0;
+    if (utcHour < 12) return 1;
+    if (utcHour < 18) return 2;
+    return 3;
+  };
+
+  const grid: number[][] = Array.from({ length: 4 }, () => Array(7).fill(0));
+  let maxAmount = 0;
+
+  for (const sale of sales) {
+    const d = new Date(sale.saleDate);
+    const day = dayIndex(d.getUTCDay());
+    const slot = timeSlot(d.getUTCHours());
+    grid[slot][day] += sale.amount;
+    if (grid[slot][day] > maxAmount) maxAmount = grid[slot][day];
+  }
+
+  const cells: { dayOfWeek: number; timeSlot: number; totalAmount: number }[] = [];
+  for (let slot = 0; slot < 4; slot++) {
+    for (let day = 0; day < 7; day++) {
+      cells.push({
+        dayOfWeek: day,
+        timeSlot: slot,
+        totalAmount: grid[slot][day],
+      });
+    }
+  }
+
+  return {
+    month,
+    year,
+    cells,
+    dayLabels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+    timeSlotLabels: HEATMAP_TIME_SLOTS,
+    maxAmount,
+  };
+}
+
 /**
  * Get revenue breakdown for custom date range with creator breakdown
  */

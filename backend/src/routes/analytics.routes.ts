@@ -8,6 +8,7 @@ import {
   getDailyRevenueBreakdownHandler,
   getWeeklyRevenueBreakdownHandler,
   getMonthlyRevenueBreakdownHandler,
+  getMonthlySalesHeatmapHandler,
   getAvailableYearsHandler,
   getDateRangeRevenueBreakdownHandler,
 } from '../controllers/analytics.controller';
@@ -180,6 +181,27 @@ export async function analyticsRoutes(fastify: FastifyInstance) {
       },
     },
     getMonthlyRevenueBreakdownHandler
+  );
+
+  // Monthly sales heatmap (day of week × time of day)
+  fastify.get(
+    '/revenue/monthly-heatmap',
+    {
+      schema: {
+        description: 'Get monthly sales heatmap by day of week and time of day',
+        tags: ['analytics'],
+        security: [{ bearerAuth: [] }],
+        querystring: {
+          type: 'object',
+          properties: {
+            month: { type: 'integer', minimum: 1, maximum: 12 },
+            year: { type: 'integer' },
+            userId: { type: 'string' },
+          },
+        },
+      },
+    },
+    getMonthlySalesHeatmapHandler
   );
 
   // Get available years

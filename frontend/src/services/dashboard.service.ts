@@ -82,10 +82,10 @@ export const dashboardService = {
   },
 
   async getAdminDashboard(month?: number, year?: number, cumulative?: boolean): Promise<AdminDashboardData> {
-    const params: any = {};
-    if (month) params.month = month;
-    if (year) params.year = year;
-    if (cumulative !== undefined) params.cumulative = cumulative;
+    const params: Record<string, string | number> = {};
+    if (month != null) params.month = month;
+    if (year != null) params.year = year;
+    if (cumulative !== undefined) params.cumulative = cumulative ? 'true' : 'false';
 
     const response = await api.get<ApiResponse<AdminDashboardData>>('/dashboard/admin', {
       params,

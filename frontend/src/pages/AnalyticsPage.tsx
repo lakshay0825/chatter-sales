@@ -6,7 +6,7 @@ import {
   Target,
   DollarSign,
 } from 'lucide-react';
-import { analyticsService, DailyRevenueBreakdown, WeeklyRevenueBreakdown, MonthlyRevenueBreakdown, DateRangeRevenueBreakdown } from '../services/analytics.service';
+import { analyticsService, DailyRevenueBreakdown, WeeklyRevenueBreakdown, MonthlyRevenueBreakdown, DateRangeRevenueBreakdown, MonthlySalesHeatmap } from '../services/analytics.service';
 import { getCurrentMonthYear, getMonthName } from '../utils/date';
 import { useAuthStore } from '../store/authStore';
 import toast from 'react-hot-toast';
@@ -35,6 +35,7 @@ export default function AnalyticsPage() {
   const [weeklyBreakdown, setWeeklyBreakdown] = useState<WeeklyRevenueBreakdown | null>(null);
   const [monthlyBreakdown, setMonthlyBreakdown] = useState<MonthlyRevenueBreakdown | null>(null);
   const [dateRangeBreakdown, setDateRangeBreakdown] = useState<DateRangeRevenueBreakdown | null>(null);
+  const [monthlySalesHeatmap, setMonthlySalesHeatmap] = useState<MonthlySalesHeatmap | null>(null);
 
   useEffect(() => {
     loadAvailableYears();
@@ -163,6 +164,7 @@ export default function AnalyticsPage() {
         promises.push(analyticsService.getWeeklyRevenueBreakdown(startDate, userId));
       } else if (viewType === 'MONTH') {
         promises.push(analyticsService.getMonthlyRevenueBreakdown(selectedMonth, selectedYear, userId));
+        promises.push(analyticsService.getMonthlySalesHeatmap(selectedMonth, selectedYear, userId));
       } else if (viewType === 'YTD') {
         // For YTD, use custom date range if provided, otherwise use full year
         if (ytdStartDate && ytdEndDate) {
@@ -200,15 +202,19 @@ export default function AnalyticsPage() {
         setWeeklyBreakdown(null);
         setMonthlyBreakdown(null);
         setDateRangeBreakdown(null);
+        setMonthlySalesHeatmap(null);
       } else if (viewType === 'WEEK') {
         const weeklyData = results[resultIndex++];
         setWeeklyBreakdown(weeklyData);
         setDailyBreakdown(null);
         setMonthlyBreakdown(null);
         setDateRangeBreakdown(null);
+        setMonthlySalesHeatmap(null);
       } else if (viewType === 'MONTH') {
         const monthlyData = results[resultIndex++];
+        const heatmapData = results[resultIndex++];
         setMonthlyBreakdown(monthlyData);
+        setMonthlySalesHeatmap(heatmapData as MonthlySalesHeatmap);
         setDailyBreakdown(null);
         setWeeklyBreakdown(null);
         setDateRangeBreakdown(null);
@@ -218,6 +224,7 @@ export default function AnalyticsPage() {
         setDailyBreakdown(null);
         setWeeklyBreakdown(null);
         setMonthlyBreakdown(null);
+        setMonthlySalesHeatmap(null);
       }
     } catch (error: any) {
       console.error('Failed to load analytics:', error);
@@ -519,6 +526,94 @@ export default function AnalyticsPage() {
         </div>
       )}
 
+      {/* Monthly View: Sales heatmap by day of week and time of day (more red = more sales) */}
+      {viewType === 'MONTH' && monthlySalesHeatmap && (() => {
+        const HEATMAP_COLORS = ['#a3abe0', '#8b9ef3', '#6d82e9', '#adadcd', '#c2b0a8', '#e2b370', '#edb45f'];
+        const max = monthlySalesHeatmap.maxAmount || 1;
+        const getHeatmapColor = (intensity: number) => {
+          if (intensity <= 0) return 'rgb(247, 247, 247)';
+          const t = Math.min(1, intensity);
+          const idx = Math.min(HEATMAP_COLORS.length - 1, Math.floor(t * HEATMAP_COLORS.length));
+          return HEATMAP_COLORS[idx];
+        };
+        return (
+          <div className="card">
+            <div className="flex items-center justify-between gap-4 mb-4 flex-wrap">
+              <div className="flex items-center gap-2">
+                <BarChart3 className="w-5 h-5 text-primary-600" />
+                <h2 className="text-xl font-semibold text-gray-900">
+                  Sales heatmap — {getMonthName(monthlySalesHeatmap.month)} {monthlySalesHeatmap.year}
+                </h2>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-500">Low</span>
+                <div
+                  className="h-4 rounded w-32 flex-shrink-0"
+                  style={{
+                    background: `linear-gradient(to right, ${HEATMAP_COLORS.join(', ')})`,
+                  }}
+                />
+                <span className="text-xs text-gray-500">High (more red = more sales)</span>
+              </div>
+            </div>
+            <p className="text-sm text-gray-600 mb-4">
+              Total sales ($) by day of week and time of day (UTC). Hover for exact amount.
+            </p>
+            <div className="overflow-x-auto -mx-1">
+              <table className="w-full border-collapse" style={{ tableLayout: 'fixed', minWidth: 420 }}>
+                <thead>
+                  <tr>
+                    <th className="text-left text-xs font-semibold text-gray-600 w-28 py-2 pl-1 pr-2" />
+                    {monthlySalesHeatmap.dayLabels.map((label) => (
+                      <th
+                        key={label}
+                        className="text-center text-xs font-semibold text-gray-600 py-2 px-1"
+                      >
+                        {label}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {monthlySalesHeatmap.timeSlotLabels.map((timeLabel, slotIndex) => (
+                    <tr key={slotIndex}>
+                      <td className="text-xs font-medium text-gray-600 py-1.5 pl-1 pr-2 align-middle w-28">
+                        {timeLabel}
+                      </td>
+                      {monthlySalesHeatmap.dayLabels.map((_, dayIndex) => {
+                        const cell = monthlySalesHeatmap.cells.find(
+                          (c) => c.timeSlot === slotIndex && c.dayOfWeek === dayIndex
+                        );
+                        const amount = cell?.totalAmount ?? 0;
+                        const intensity = max > 0 ? amount / max : 0;
+                        const bg = getHeatmapColor(intensity);
+                        const textContrast = intensity > 0.6 ? 'white' : 'rgb(31, 41, 55)';
+                        return (
+                          <td
+                            key={dayIndex}
+                            className="py-1 px-0.5 align-middle transition-transform hover:scale-105"
+                            style={{
+                              backgroundColor: bg,
+                              color: textContrast,
+                              minWidth: 44,
+                              height: 36,
+                              fontSize: '0.75rem',
+                              fontWeight: amount > 0 ? 600 : 400,
+                            }}
+                            title={`${monthlySalesHeatmap.dayLabels[dayIndex]} ${timeLabel}: $${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                          >
+                            {amount > 0 ? `$${amount.toLocaleString('en-US', { maximumFractionDigits: 0 })}` : '—'}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Performance Indicators */}
       {performanceIndicators && (

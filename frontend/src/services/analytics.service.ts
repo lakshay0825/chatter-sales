@@ -98,6 +98,21 @@ export interface DateRangeRevenueBreakdown {
   creatorBreakdown: CreatorBreakdown[];
 }
 
+export interface MonthlySalesHeatmapCell {
+  dayOfWeek: number;
+  timeSlot: number;
+  totalAmount: number;
+}
+
+export interface MonthlySalesHeatmap {
+  month: number;
+  year: number;
+  cells: MonthlySalesHeatmapCell[];
+  dayLabels: string[];
+  timeSlotLabels: string[];
+  maxAmount: number;
+}
+
 // Helper: format a Date as local calendar date (YYYY-MM-DD) without timezone shifting.
 // Using toISOString() can move dates back/forward a day when converting to UTC,
 // which breaks weekly/YTD ranges. This helper keeps the actual chosen calendar day.
@@ -271,6 +286,23 @@ export const analyticsService = {
     if (userId) params.userId = userId;
 
     const response = await api.get<ApiResponse<MonthlyRevenueBreakdown>>('/analytics/revenue/monthly', {
+      params,
+    });
+    return response.data.data!;
+  },
+
+  /**
+   * Get monthly sales heatmap by day of week (Mon–Sun) and time of day (for Analytics Monthly view).
+   */
+  async getMonthlySalesHeatmap(
+    month: number,
+    year: number,
+    userId?: string
+  ): Promise<MonthlySalesHeatmap> {
+    const params: any = { month, year };
+    if (userId) params.userId = userId;
+
+    const response = await api.get<ApiResponse<MonthlySalesHeatmap>>('/analytics/revenue/monthly-heatmap', {
       params,
     });
     return response.data.data!;
