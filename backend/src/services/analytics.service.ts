@@ -722,12 +722,20 @@ export async function getMonthlyRevenueBreakdown(
   };
 }
 
-/** Time slot labels for heatmap (UTC hours) */
+/** Time slot labels for heatmap (UTC hours, 2-hour buckets) */
 const HEATMAP_TIME_SLOTS = [
-  '00:00–05:59',
-  '06:00–11:59',
-  '12:00–17:59',
-  '18:00–23:59',
+  '00:00–01:59',
+  '02:00–03:59',
+  '04:00–05:59',
+  '06:00–07:59',
+  '08:00–09:59',
+  '10:00–11:59',
+  '12:00–13:59',
+  '14:00–15:59',
+  '16:00–17:59',
+  '18:00–19:59',
+  '20:00–21:59',
+  '22:00–23:59',
 ];
 
 /**
@@ -755,14 +763,10 @@ export async function getMonthlySalesHeatmap(
 
   // dayOfWeek: 0 = Sun, 1 = Mon, ... in JS. We want Mon=0..Sun=6 for display.
   const dayIndex = (utcDay: number) => (utcDay + 6) % 7;
-  const timeSlot = (utcHour: number) => {
-    if (utcHour < 6) return 0;
-    if (utcHour < 12) return 1;
-    if (utcHour < 18) return 2;
-    return 3;
-  };
+  // 12 two-hour slots: 0–1:59, 2–3:59, ..., 22–23:59
+  const timeSlot = (utcHour: number) => Math.floor(utcHour / 2);
 
-  const grid: number[][] = Array.from({ length: 4 }, () => Array(7).fill(0));
+  const grid: number[][] = Array.from({ length: HEATMAP_TIME_SLOTS.length }, () => Array(7).fill(0));
   let maxAmount = 0;
 
   for (const sale of sales) {
@@ -774,7 +778,7 @@ export async function getMonthlySalesHeatmap(
   }
 
   const cells: { dayOfWeek: number; timeSlot: number; totalAmount: number }[] = [];
-  for (let slot = 0; slot < 4; slot++) {
+  for (let slot = 0; slot < HEATMAP_TIME_SLOTS.length; slot++) {
     for (let day = 0; day < 7; day++) {
       cells.push({
         dayOfWeek: day,
