@@ -6,6 +6,7 @@ export interface CreateUserData {
   name: string;
   role: UserRole;
   commissionPercent?: number;
+  specialCommissionPercent?: number;
   fixedSalary?: number;
 }
 
@@ -13,6 +14,7 @@ export interface UpdateUserData {
   name?: string;
   role?: UserRole;
   commissionPercent?: number;
+  specialCommissionPercent?: number;
   fixedSalary?: number;
   isActive?: boolean;
 }

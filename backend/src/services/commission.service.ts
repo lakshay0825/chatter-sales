@@ -12,6 +12,7 @@ export async function calculateCommission(
     where: { id: userId },
     select: {
       commissionPercent: true,
+      specialCommissionPercent: true,
       fixedSalary: true,
     },
   });
@@ -20,7 +21,7 @@ export async function calculateCommission(
     return 0;
   }
 
-  // Get all sales for the user in the given month
+  // Get all sales for the user in the given month (need per-sale commission rate)
   const startDate = new Date(year, month - 1, 1);
   const endDate = new Date(year, month, 0, 23, 59, 59, 999);
 
@@ -35,35 +36,24 @@ export async function calculateCommission(
     select: {
       amount: true,
       baseAmount: true,
+      useSpecialCommission: true,
     },
   });
 
-  // Split revenue into percentage-based part and BASE part
-  const totalVariableSales = sales.reduce(
-    (sum: number, sale) => sum + sale.amount,
-    0
-  );
+  // Calculate commission per sale: use specialCommissionPercent when useSpecialCommission is true
+  const basePct = user.commissionPercent ?? 0;
+  const specialPct = user.specialCommissionPercent ?? basePct;
 
-  const totalBaseEarnings = sales.reduce(
-    (sum: number, sale) => sum + (sale.baseAmount || 0),
-    0
-  );
-
-  // Calculate commission:
-  // - Percentage applies ONLY to variable sales (amount)
-  // - BASE earnings are added 1:1 on top of commission
   let commission = 0;
-  
-  if (user.commissionPercent !== null) {
-    commission += (totalVariableSales * user.commissionPercent) / 100;
+  for (const sale of sales) {
+    const pct = sale.useSpecialCommission && specialPct > 0 ? specialPct : basePct;
+    commission += (sale.amount * pct) / 100;
+    commission += sale.baseAmount || 0;
   }
-  
+
   if (user.fixedSalary !== null) {
     commission += user.fixedSalary;
   }
-
-  // BASE earnings are always added in full, independent of commission%
-  commission += totalBaseEarnings;
 
   return commission;
 }
@@ -83,6 +73,7 @@ export async function calculateTotalCommissions(
     select: {
       id: true,
       commissionPercent: true,
+      specialCommissionPercent: true,
       fixedSalary: true,
     },
   });

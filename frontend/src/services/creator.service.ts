@@ -7,6 +7,7 @@ export interface CreateCreatorData {
   revenueSharePercent?: number;
   fixedSalaryCost?: number;
   onlyfansCommissionPercent?: number;
+  paymentProcessorCostPercent?: number;
 }
 
 export interface UpdateCreatorData {
@@ -15,6 +16,7 @@ export interface UpdateCreatorData {
   revenueSharePercent?: number;
   fixedSalaryCost?: number;
   onlyfansCommissionPercent?: number;
+  paymentProcessorCostPercent?: number;
   isActive?: boolean;
 }
 

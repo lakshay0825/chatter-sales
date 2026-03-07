@@ -39,9 +39,10 @@ model User {
   role              UserRole  @default(CHATTER)
   avatar            String?
   identificationPhoto String?
-  commissionPercent Float?    @default(0)
-  fixedSalary       Float?    @default(0)
-  isActive          Boolean   @default(true)
+  commissionPercent       Float?    @default(0)
+  specialCommissionPercent Float?   // Higher rate when chatter uses "Special Commission Rate" on a sale (e.g. 15% vs 10%)
+  fixedSalary             Float?    @default(0)
+  isActive                Boolean   @default(true)
   emailVerified     Boolean   @default(false)
   emailVerifiedAt   DateTime?
   invitationToken   String?   @unique
@@ -69,8 +70,9 @@ model Creator {
   compensationType        String    // "PERCENTAGE" or "SALARY"
   revenueSharePercent     Float?    // Percentage if compensationType is PERCENTAGE
   fixedSalaryCost         Float?    // Monthly amount if compensationType is SALARY
-  onlyfansCommissionPercent Float?  @default(20) // OnlyFans commission (15% or 20%)
-  isActive                Boolean   @default(true)
+  onlyfansCommissionPercent  Float?  @default(20) // OnlyFans commission (15% or 20%)
+  paymentProcessorCostPercent Float? @default(0) // % of (Revenue*0.8) charged by payment processor on payouts
+  isActive                   Boolean @default(true)
   createdAt               DateTime  @default(now())
   updatedAt               DateTime  @updatedAt
 
@@ -83,13 +85,14 @@ model Creator {
 }
 
 model Sale {
-  id        String     @id @default(cuid())
-  amount    Float
-  baseAmount Float?    @default(0) // BASE amount - counts toward chatter earnings but not creator earnings
-  saleType  SaleType
-  status    SaleStatus @default(ONLINE)
-  note      String?
-  saleDate  DateTime   @default(now())
+  id                  String     @id @default(cuid())
+  amount              Float
+  baseAmount          Float?     @default(0) // BASE amount - counts toward chatter earnings but not creator earnings
+  saleType            SaleType
+  status              SaleStatus @default(ONLINE)
+  note                String?
+  useSpecialCommission Boolean?  @default(false) // If true, commission uses chatter's specialCommissionPercent
+  saleDate            DateTime   @default(now())
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
 

@@ -82,13 +82,19 @@ export default function AdminDashboardPage() {
   const totalCommissions = safeDashboardData.totalCommissions;
   const totalFixedSalaries = safeDashboardData.totalFixedSalaries || 0;
   const totalOwedToChatters = safeDashboardData.totalOwedToChatters || 0;
+  const totalBonuses =
+    safeDashboardData.totalBonuses ??
+    safeDashboardData.chatterRevenue.reduce((sum, item) => sum + (item.bonus ?? 0), 0);
   // Agency earnings: sum of creator-level net revenue (after OnlyFans, creator earnings, and including cashback),
   // minus all creator-level costs and chatter percentage commissions (handled in agencyProfit on the backend),
   // minus fixed salaries (agency earnings).
-  const totalAgencyEarnings = safeDashboardData.creatorFinancials.reduce(
-    (sum, item) => sum + (item.agencyProfit ?? item.netRevenue),
-    0
-  ) - totalFixedSalaries;
+  const totalAgencyEarnings =
+    safeDashboardData.creatorFinancials.reduce(
+      (sum, item) => sum + (item.agencyProfit ?? item.netRevenue),
+      0
+    ) -
+    totalFixedSalaries -
+    totalBonuses;
   
   const hasNoData = safeDashboardData.chatterRevenue.length === 0 && safeDashboardData.creatorFinancials.length === 0;
 
@@ -261,6 +267,9 @@ export default function AdminDashboardPage() {
                   Commissions
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  Bonus
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                   Fixed Salary
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
@@ -316,6 +325,12 @@ export default function AdminDashboardPage() {
                     ${item.commission.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </td>
                   <td className="px-6 py-4 text-sm font-medium text-gray-900">
+                    ${(item.bonus ?? 0).toLocaleString('en-US', {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}
+                  </td>
+                  <td className="px-6 py-4 text-sm font-medium text-gray-900">
                     ${item.fixedSalary.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </td>
                   <td className="px-6 py-4 text-sm font-medium text-gray-900">
@@ -344,6 +359,10 @@ export default function AdminDashboardPage() {
               ${(
                 totalCommissions / safeDashboardData.chatterRevenue.length
               ).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              , Bonus:{' '}
+              ${(
+                totalBonuses / safeDashboardData.chatterRevenue.length
+              ).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               , Fixed Salary:{' '}
               ${(
                 totalFixedSalaries / safeDashboardData.chatterRevenue.length
@@ -355,7 +374,7 @@ export default function AdminDashboardPage() {
               ).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
             <p className="text-xs text-gray-500 mt-1">
-              <strong>Total Retribution</strong> = Total BASE + Fixed Salary + Sales commission (matches each chatter’s Dashboard).
+              <strong>Total Retribution</strong> = Total BASE + Fixed Salary + Sales commission + Bonuses (matches each chatter’s Dashboard).
             </p>
           </div>
         )}
@@ -394,6 +413,8 @@ export default function AdminDashboardPage() {
                 marketingCosts={creatorFinancial.marketingCosts}
                 toolCosts={creatorFinancial.toolCosts}
                 customCosts={creatorFinancial.customCosts}
+                paymentProcessorCostPercent={creatorFinancial.paymentProcessorCostPercent}
+                paymentProcessorCost={creatorFinancial.paymentProcessorCost}
                 netRevenue={creatorFinancial.netRevenue}
                 agencyProfit={creatorFinancial.agencyProfit}
                 month={selectedMonth}

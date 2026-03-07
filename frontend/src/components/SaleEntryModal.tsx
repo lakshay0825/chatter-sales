@@ -17,6 +17,7 @@ const saleSchema = z.object({
   saleType: z.nativeEnum(SaleType),
   note: z.string().optional(),
   saleDate: z.date().optional(),
+  useSpecialCommission: z.boolean().optional(),
 }).refine((data) => {
   // If saleType is BASE, amount can be 0, but baseAmount must be > 0
   // Otherwise, amount must be > 0
@@ -72,6 +73,7 @@ export default function SaleEntryModal({ isOpen, onClose, onSuccess }: SaleEntry
         saleType: SaleType.PPV,
         note: '',
         saleDate: undefined,
+        useSpecialCommission: false,
       });
       setIsBackdating(false);
       loadCreators();
@@ -119,6 +121,7 @@ export default function SaleEntryModal({ isOpen, onClose, onSuccess }: SaleEntry
         saleType: data.saleType,
         note: data.note,
         saleDate: isBackdating ? data.saleDate : undefined,
+        useSpecialCommission: data.useSpecialCommission ?? false,
       };
 
       await saleService.createSale(saleData);
@@ -250,6 +253,24 @@ export default function SaleEntryModal({ isOpen, onClose, onSuccess }: SaleEntry
             {errors.amount && (
               <p className="mt-1 text-sm text-red-600">{errors.amount.message}</p>
             )}
+          </div>
+
+          {/* Special Commission Rate */}
+          <div>
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="useSpecialCommission"
+                {...register('useSpecialCommission')}
+                className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+              />
+              <label htmlFor="useSpecialCommission" className="text-sm font-medium text-gray-700">
+                Special Commission Rate
+              </label>
+            </div>
+            <p className="mt-1 text-xs text-gray-500">
+              Use your higher commission % for this sale (set in your profile by admin)
+            </p>
           </div>
 
           {/* BASE Amount */}

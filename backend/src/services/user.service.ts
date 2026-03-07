@@ -29,8 +29,9 @@ export async function createUser(input: CreateUserInput) {
       email: input.email.toLowerCase(),
       name: input.name,
       role: input.role,
-      commissionPercent: input.commissionPercent || null,
-      fixedSalary: input.fixedSalary || null,
+      commissionPercent: input.commissionPercent ?? null,
+      specialCommissionPercent: input.specialCommissionPercent ?? null,
+      fixedSalary: input.fixedSalary ?? null,
       password: '', // Will be set when user activates account
       invitationToken,
       invitationExpires,
@@ -82,6 +83,7 @@ export async function getUserById(userId: string) {
       avatar: true,
       identificationPhoto: true,
       commissionPercent: true,
+      specialCommissionPercent: true,
       fixedSalary: true,
       isActive: true,
       emailVerified: true,
@@ -117,6 +119,7 @@ export async function getUsers(role?: UserRole, isActive?: boolean) {
       avatar: true,
       identificationPhoto: true,
       commissionPercent: true,
+      specialCommissionPercent: true,
       fixedSalary: true,
       isActive: true,
       emailVerified: true,
@@ -145,9 +148,12 @@ export async function updateUser(userId: string, input: UpdateUserInput) {
     throw new NotFoundError('User not found');
   }
 
-  // Validate commission percent if provided
+  // Validate commission percents if provided
   if (input.commissionPercent !== undefined && (input.commissionPercent < 0 || input.commissionPercent > 100)) {
     throw new ValidationError('Commission percentage must be between 0 and 100');
+  }
+  if (input.specialCommissionPercent !== undefined && (input.specialCommissionPercent < 0 || input.specialCommissionPercent > 100)) {
+    throw new ValidationError('Special commission percentage must be between 0 and 100');
   }
 
   const user = await prisma.user.update({
@@ -156,6 +162,7 @@ export async function updateUser(userId: string, input: UpdateUserInput) {
       ...(input.name !== undefined && { name: input.name }),
       ...(input.role !== undefined && { role: input.role }),
       ...(input.commissionPercent !== undefined && { commissionPercent: input.commissionPercent }),
+      ...(input.specialCommissionPercent !== undefined && { specialCommissionPercent: input.specialCommissionPercent }),
       ...(input.fixedSalary !== undefined && { fixedSalary: input.fixedSalary }),
       ...(input.isActive !== undefined && { isActive: input.isActive }),
       ...(input.avatar !== undefined && { avatar: input.avatar }),
@@ -169,6 +176,7 @@ export async function updateUser(userId: string, input: UpdateUserInput) {
       avatar: true,
       identificationPhoto: true,
       commissionPercent: true,
+      specialCommissionPercent: true,
       fixedSalary: true,
       isActive: true,
       updatedAt: true,

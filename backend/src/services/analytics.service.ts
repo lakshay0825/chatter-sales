@@ -421,6 +421,7 @@ export async function getChatterLeaderboardForDateRange(
         select: {
           amount: true,
           baseAmount: true,
+          useSpecialCommission: true,
         },
       },
     },
@@ -433,14 +434,16 @@ export async function getChatterLeaderboardForDateRange(
       const variableSalesTotal = chatter.sales.reduce((sum, sale) => sum + sale.amount, 0);
       const baseEarningsTotal = chatter.sales.reduce((sum, sale) => sum + (sale.baseAmount || 0), 0);
 
+      const basePct = chatter.commissionPercent ?? 0;
+      const specialPct = chatter.specialCommissionPercent ?? basePct;
       let commission = 0;
+      for (const sale of chatter.sales) {
+        const pct = sale.useSpecialCommission && specialPct > 0 ? specialPct : basePct;
+        commission += (sale.amount * pct) / 100;
+      }
+      commission += baseEarningsTotal;
 
-      if (chatter.commissionPercent) {
-        // Percentage on variable sales only, BASE added 1:1
-        commission =
-          (variableSalesTotal * chatter.commissionPercent) / 100 +
-          baseEarningsTotal;
-      } else if (chatter.fixedSalary) {
+      if (!chatter.commissionPercent && !chatter.specialCommissionPercent && chatter.fixedSalary) {
         // For fixed salary, calculate based on number of days in period
         const timeDiff = endDate.getTime() - startDate.getTime();
         const daysDiff = Math.ceil(timeDiff / (1000 * 60 * 60 * 24)) + 1;

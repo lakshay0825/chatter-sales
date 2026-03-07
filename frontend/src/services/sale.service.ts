@@ -8,6 +8,7 @@ export interface CreateSaleData {
   saleType: SaleType;
   note?: string;
   saleDate?: Date;
+  useSpecialCommission?: boolean;
 }
 
 export interface UpdateSaleData {
@@ -17,6 +18,7 @@ export interface UpdateSaleData {
   saleType?: SaleType;
   note?: string;
   saleDate?: Date;
+  useSpecialCommission?: boolean;
   userId?: string;
 }
 

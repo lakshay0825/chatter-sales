@@ -18,8 +18,10 @@ interface CreatorFinancialCardProps {
   marketingCosts: number;
   toolCosts: number;
   customCosts?: Array<{ name: string; amount: number }>;
+  paymentProcessorCostPercent?: number;
+  paymentProcessorCost?: number;
   netRevenue: number;
-  agencyProfit: number; // Backend-calculated: netRevenue - costs - chatterCommissions
+  agencyProfit: number; // Backend-calculated: netRevenue - costs - chatterCommissions - paymentProcessorCost
   month: number;
   year: number;
   onUpdate: () => void;
@@ -40,6 +42,8 @@ export default function CreatorFinancialCard({
   customCosts: initialCustomCosts = [],
   netRevenue: initialNetRevenue,
   agencyProfit: backendAgencyProfit,
+  paymentProcessorCostPercent,
+  paymentProcessorCost = 0,
   month,
   year,
   onUpdate,
@@ -233,6 +237,16 @@ export default function CreatorFinancialCard({
               </span>
             )}
           </div>
+          {paymentProcessorCost > 0 && (
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-gray-600">
+                Payment Processor Cost {(paymentProcessorCostPercent ?? 0) > 0 ? `(${paymentProcessorCostPercent}% of Revenue×0.8)` : ''}
+              </span>
+              <span className="text-sm font-medium text-red-600">
+                -${paymentProcessorCost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </span>
+            </div>
+          )}
 
           {/* Custom Costs */}
           {customCosts.length > 0 && (

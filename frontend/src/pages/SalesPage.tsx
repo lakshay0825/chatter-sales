@@ -435,7 +435,10 @@ export default function SalesPage() {
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-100">
                   {sales.map((sale) => (
-                    <tr key={sale.id} className="hover:bg-primary-50/30 transition-colors">
+                    <tr
+                      key={sale.id}
+                      className={`hover:bg-primary-50/30 transition-colors ${sale.useSpecialCommission ? 'font-bold' : ''}`}
+                    >
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {formatItalianDateTime(sale.saleDate)}
                       </td>

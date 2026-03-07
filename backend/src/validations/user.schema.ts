@@ -8,6 +8,7 @@ export const createUserSchema = z.object({
     name: z.string().min(1, 'Name is required'),
     role: z.nativeEnum(UserRole),
     commissionPercent: z.number().min(0).max(100).optional(),
+    specialCommissionPercent: z.number().min(0).max(100).optional(),
     fixedSalary: z.number().min(0).optional(),
   }),
 });
@@ -23,6 +24,7 @@ export const updateUserSchema = z.object({
     name: z.string().min(1).optional(),
     role: z.nativeEnum(UserRole).optional(),
     commissionPercent: z.number().min(0).max(100).optional(),
+    specialCommissionPercent: z.number().min(0).max(100).optional(),
     fixedSalary: z.number().min(0).optional(),
     isActive: z.boolean().optional(),
     avatar: z.string().optional(),

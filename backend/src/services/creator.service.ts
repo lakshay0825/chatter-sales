@@ -22,6 +22,7 @@ export async function createCreator(input: CreateCreatorInput) {
       revenueSharePercent: input.compensationType === 'PERCENTAGE' ? (input.revenueSharePercent !== undefined ? input.revenueSharePercent : null) : null,
       fixedSalaryCost: input.compensationType === 'SALARY' ? (input.fixedSalaryCost !== undefined ? input.fixedSalaryCost : null) : null,
       onlyfansCommissionPercent: input.onlyfansCommissionPercent !== undefined ? input.onlyfansCommissionPercent : 20, // Default to 20%
+      paymentProcessorCostPercent: input.paymentProcessorCostPercent ?? 0,
     },
   });
 
@@ -106,6 +107,7 @@ export async function updateCreator(creatorId: string, input: UpdateCreatorInput
       revenueSharePercent,
       fixedSalaryCost,
       ...(input.onlyfansCommissionPercent !== undefined && { onlyfansCommissionPercent: input.onlyfansCommissionPercent }),
+      ...(input.paymentProcessorCostPercent !== undefined && { paymentProcessorCostPercent: input.paymentProcessorCostPercent }),
       ...(input.isActive !== undefined && { isActive: input.isActive }),
       ...(input.avatar !== undefined && { avatar: input.avatar }),
       ...(input.identificationPhoto !== undefined && { identificationPhoto: input.identificationPhoto }),

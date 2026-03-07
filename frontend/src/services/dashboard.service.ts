@@ -25,11 +25,13 @@ export interface AdminDashboardData {
     commission: number;
     fixedSalary: number;
     totalBase: number;
+    bonus: number;
     totalRetribution: number;
   }>;
   totalCommissions: number;
   totalFixedSalaries?: number; // Total fixed salaries for agency earnings calculation
   totalOwedToChatters?: number;
+  totalBonuses?: number;
   creatorFinancials: Array<{
     creatorId: string;
     creatorName: string;

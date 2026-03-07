@@ -44,6 +44,15 @@ const createCreatorSchema = z
       },
       z.number().min(0).max(100).optional()
     ),
+    paymentProcessorCostPercent: z.preprocess(
+      (val) => {
+        if (val === undefined || val === null || val === '' || isNaN(Number(val))) {
+          return 0;
+        }
+        return Number(val);
+      },
+      z.number().min(0).max(100).optional()
+    ),
   })
   .refine(
     (data) => {
@@ -106,6 +115,7 @@ export default function CreatorsPage() {
       revenueSharePercent: undefined,
       fixedSalaryCost: undefined,
       onlyfansCommissionPercent: 20,
+      paymentProcessorCostPercent: 0,
     },
   });
 
@@ -134,6 +144,7 @@ export default function CreatorsPage() {
         revenueSharePercent: selectedCreator.revenueSharePercent || undefined,
         fixedSalaryCost: selectedCreator.fixedSalaryCost || undefined,
         onlyfansCommissionPercent: selectedCreator.onlyfansCommissionPercent || 20,
+        paymentProcessorCostPercent: selectedCreator.paymentProcessorCostPercent ?? 0,
       });
     }
   }, [selectedCreator, reset]);
@@ -170,6 +181,7 @@ export default function CreatorsPage() {
         revenueSharePercent,
         fixedSalaryCost,
         onlyfansCommissionPercent: data.onlyfansCommissionPercent !== undefined ? data.onlyfansCommissionPercent : 20,
+        paymentProcessorCostPercent: data.paymentProcessorCostPercent ?? 0,
       };
 
       console.log('Creating creator with data:', creatorData);
@@ -560,6 +572,24 @@ export default function CreatorsPage() {
                     {errors.onlyfansCommissionPercent.message}
                   </p>
                 )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Payment Processor Cost (%)
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  max="100"
+                  {...register('paymentProcessorCostPercent', { valueAsNumber: true })}
+                  className="input"
+                  placeholder="0"
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  % of (Revenue × 0.8) charged by payment processor on OnlyFans payouts. Deducted from agency profit.
+                </p>
               </div>
 
               <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 sm:gap-4 pt-4 border-t border-gray-200">

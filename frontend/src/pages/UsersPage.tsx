@@ -18,6 +18,7 @@ const createUserSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   role: z.nativeEnum(UserRole),
   commissionPercent: z.number().min(0).max(100).optional(),
+  specialCommissionPercent: z.number().min(0).max(100).optional(),
   fixedSalary: z.number().min(0).optional(),
 });
 
@@ -70,6 +71,7 @@ export default function UsersPage() {
       setValue('name', selectedUser.name);
       setValue('role', selectedUser.role);
       setValue('commissionPercent', selectedUser.commissionPercent || undefined);
+      setValue('specialCommissionPercent', (selectedUser as { specialCommissionPercent?: number }).specialCommissionPercent || undefined);
       setValue('fixedSalary', selectedUser.fixedSalary || undefined);
       setValue('email', selectedUser.email); // Set email but it will be disabled
     } else {
@@ -78,6 +80,7 @@ export default function UsersPage() {
         name: '',
         role: UserRole.CHATTER,
         commissionPercent: undefined,
+        specialCommissionPercent: undefined,
         fixedSalary: undefined,
       });
     }
@@ -115,6 +118,7 @@ export default function UsersPage() {
           name: data.name,
           role: data.role,
           commissionPercent: data.commissionPercent,
+          specialCommissionPercent: data.specialCommissionPercent,
           fixedSalary: data.fixedSalary,
         });
         toast.success('User updated successfully');
@@ -130,6 +134,7 @@ export default function UsersPage() {
           name: data.name,
           role: data.role,
           commissionPercent: data.commissionPercent,
+          specialCommissionPercent: data.specialCommissionPercent,
           fixedSalary: data.fixedSalary,
         };
 
@@ -539,11 +544,31 @@ export default function UsersPage() {
                   step="0.1"
                   {...register('commissionPercent', { valueAsNumber: true })}
                   className="input"
-                  placeholder="0-100"
+                  placeholder="e.g. 10"
                 />
+                <p className="mt-1 text-xs text-gray-500">Default rate applied to sales</p>
                 {errors.commissionPercent && (
                   <p className="mt-1 text-sm text-red-600">
                     {errors.commissionPercent.message}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Special Commission Rate (%)
+                </label>
+                <input
+                  type="number"
+                  step="0.1"
+                  {...register('specialCommissionPercent', { valueAsNumber: true })}
+                  className="input"
+                  placeholder="e.g. 15"
+                />
+                <p className="mt-1 text-xs text-gray-500">Higher rate when chatter ticks &quot;Special Commission Rate&quot; on a sale</p>
+                {errors.specialCommissionPercent && (
+                  <p className="mt-1 text-sm text-red-600">
+                    {errors.specialCommissionPercent.message}
                   </p>
                 )}
               </div>

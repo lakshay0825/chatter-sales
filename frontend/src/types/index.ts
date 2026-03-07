@@ -27,6 +27,7 @@ export interface User {
   avatar?: string;
   identificationPhoto?: string;
   commissionPercent?: number;
+  specialCommissionPercent?: number;
   fixedSalary?: number;
   isActive: boolean;
   emailVerified: boolean;
@@ -43,6 +44,7 @@ export interface Creator {
   revenueSharePercent?: number;
   fixedSalaryCost?: number;
   onlyfansCommissionPercent?: number;
+  paymentProcessorCostPercent?: number;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -55,6 +57,7 @@ export interface Sale {
   status: SaleStatus;
   note?: string;
   saleDate: string;
+  useSpecialCommission?: boolean;
   createdAt: string;
   updatedAt: string;
   userId: string;

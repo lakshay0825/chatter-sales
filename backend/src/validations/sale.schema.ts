@@ -23,6 +23,7 @@ export const createSaleSchema = z.object({
     ),
     note: z.string().optional(),
     saleDate: z.coerce.date().optional(), // Optional for backdating
+    useSpecialCommission: z.boolean().optional(),
   }).refine((data) => {
     // If saleType is BASE, amount can be 0, but baseAmount must be > 0
     // For MASS_MESSAGE and other types, amount must be > 0
@@ -52,6 +53,7 @@ export const updateSaleSchema = z.object({
     saleType: z.nativeEnum(SaleType).optional(),
     note: z.string().optional(),
     saleDate: z.coerce.date().optional(),
+    useSpecialCommission: z.boolean().optional(),
     userId: z.string().cuid().optional(), // For reassigning sales (managers only)
   }).refine((data) => {
     // If saleType is BASE, amount can be 0, but baseAmount must be > 0

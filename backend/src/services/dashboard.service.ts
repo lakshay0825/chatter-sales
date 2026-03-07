@@ -45,10 +45,12 @@ export async function getChatterDashboard(userId: string, month: number, year: n
     }
     dailySales[dayKey] += sale.amount;
     
-    // Calculate commission for this sale
-    // Percentage applies only to variable sales (amount), BASE is added 1:1
-    if (user.commissionPercent) {
-      dailyCommissions[dayKey] += (sale.amount * user.commissionPercent) / 100;
+    // Calculate commission for this sale: use special rate when sale.useSpecialCommission
+    const basePct = user.commissionPercent ?? 0;
+    const specialPct = user.specialCommissionPercent ?? basePct;
+    const pct = sale.useSpecialCommission && specialPct > 0 ? specialPct : basePct;
+    if (pct > 0) {
+      dailyCommissions[dayKey] += (sale.amount * pct) / 100;
     }
     // BASE earnings are always added 1:1
     if (sale.baseAmount) {
@@ -89,6 +91,7 @@ export async function getChatterDashboard(userId: string, month: number, year: n
       id: user.id,
       name: user.name,
       commissionPercent: user.commissionPercent,
+      specialCommissionPercent: user.specialCommissionPercent,
       fixedSalary: user.fixedSalary,
     },
   };
@@ -108,11 +111,13 @@ type AdminDashboardResult = {
     commission: number;
     fixedSalary: number;
     totalBase: number;
+    bonus: number;
     totalRetribution: number;
   }>;
   totalCommissions: number;
   totalFixedSalaries?: number;
   totalOwedToChatters?: number;
+  totalBonuses?: number;
   creatorFinancials: Array<{
     creatorId: string;
     creatorName: string;
@@ -127,6 +132,8 @@ type AdminDashboardResult = {
     toolCosts: number;
     otherCosts: number;
     customCosts: Array<{ name: string; amount: number }>;
+    paymentProcessorCostPercent?: number;
+    paymentProcessorCost?: number;
     netRevenue: number;
     agencyProfit: number;
   }>;
@@ -147,33 +154,27 @@ export async function getAdminDashboard(
     }
 
     // Aggregate chatter revenue across all months
-    const chatterMap = new Map<string, {
-      chatterId: string;
-      chatterName: string;
-      avatar?: string;
-      revenue: number;
-      commission: number;
-      fixedSalary: number;
-      totalBase: number;
-      totalRetribution: number;
-    }>();
+    const chatterMap = new Map<string, AdminDashboardResult['chatterRevenue'][number]>();
 
     for (const res of monthlyResults) {
       for (const item of res.chatterRevenue) {
-        const existing = chatterMap.get(item.chatterId) || {
-          chatterId: item.chatterId,
-          chatterName: item.chatterName,
-          avatar: item.avatar,
-          revenue: 0,
-          commission: 0,
-          fixedSalary: 0,
-          totalBase: 0,
-          totalRetribution: 0,
-        };
+        const existing =
+          chatterMap.get(item.chatterId) || {
+            chatterId: item.chatterId,
+            chatterName: item.chatterName,
+            avatar: item.avatar,
+            revenue: 0,
+            commission: 0,
+            fixedSalary: 0,
+            totalBase: 0,
+            bonus: 0,
+            totalRetribution: 0,
+          };
         existing.revenue += item.revenue;
         existing.commission += item.commission;
         existing.fixedSalary += item.fixedSalary;
         existing.totalBase += item.totalBase ?? 0;
+        existing.bonus += item.bonus ?? 0;
         existing.totalRetribution += item.totalRetribution ?? 0;
         chatterMap.set(item.chatterId, existing);
       }
@@ -198,6 +199,8 @@ export async function getAdminDashboard(
           toolCosts: 0,
           otherCosts: 0,
           customCosts: [],
+          paymentProcessorCostPercent: cf.paymentProcessorCostPercent,
+          paymentProcessorCost: 0,
           netRevenue: 0,
           agencyProfit: 0,
         };
@@ -211,6 +214,7 @@ export async function getAdminDashboard(
         existing.otherCosts += cf.otherCosts;
         existing.netRevenue += cf.netRevenue;
         existing.agencyProfit += cf.agencyProfit;
+        existing.paymentProcessorCost = (existing.paymentProcessorCost ?? 0) + (cf.paymentProcessorCost ?? 0);
 
         if (cf.customCosts && cf.customCosts.length > 0) {
           existing.customCosts = [...existing.customCosts, ...cf.customCosts];
@@ -235,6 +239,10 @@ export async function getAdminDashboard(
       (sum, res) => sum + (res.totalOwedToChatters || 0),
       0
     );
+    const totalBonuses: number = monthlyResults.reduce(
+      (sum, res) => sum + (res.totalBonuses || 0),
+      0
+    );
 
     return {
       month: 12,
@@ -243,6 +251,7 @@ export async function getAdminDashboard(
       totalCommissions,
       totalFixedSalaries,
       totalOwedToChatters,
+      totalBonuses,
       creatorFinancials,
     };
   }
@@ -266,35 +275,68 @@ export async function getAdminDashboard(
       email: true,
       avatar: true,
       commissionPercent: true,
+      specialCommissionPercent: true,
       fixedSalary: true,
     },
   });
 
-  // Calculate revenue and commissions per chatter
+  // Pre-calculate bonuses per chatter for this month (payments whose note mentions "bonus")
+  const bonusByChatter = await prisma.payment.groupBy({
+    by: ['userId'],
+    where: {
+      paymentDate: {
+        gte: startDate,
+        lte: endDate,
+      },
+      note: {
+        contains: 'bonus',
+      },
+    },
+    _sum: {
+      amount: true,
+    },
+  });
+  const bonusMap = new Map<string, number>();
+  for (const row of bonusByChatter) {
+    bonusMap.set(row.userId, (row._sum?.amount as number | null) || 0);
+  }
+
+  let totalBonuses = 0;
+
+  // Calculate revenue, commissions and bonuses per chatter
   const chatterRevenue: any[] = [];
   for (const chatter of chatters) {
     let revenue = 0;
     let baseEarnings = 0;
 
-    const sales = await prisma.sale.aggregate({
+    const salesList = await prisma.sale.findMany({
       where: {
         userId: chatter.id,
         saleDate: { gte: startDate, lte: endDate },
       },
-      _sum: { amount: true, baseAmount: true },
+      select: { amount: true, baseAmount: true, useSpecialCommission: true },
     });
-    revenue = sales._sum.amount || 0;
-    baseEarnings = sales._sum.baseAmount || 0;
+    revenue = salesList.reduce((s, x) => s + x.amount, 0);
+    baseEarnings = salesList.reduce((s, x) => s + (x.baseAmount || 0), 0);
     const totalBase = baseEarnings;
+
+    const basePct = chatter.commissionPercent ?? 0;
+    const specialPct = chatter.specialCommissionPercent ?? basePct;
+    let salesCommission = 0;
+    for (const sale of salesList) {
+      const pct = sale.useSpecialCommission && specialPct > 0 ? specialPct : basePct;
+      salesCommission += (sale.amount * pct) / 100;
+    }
 
     // Fixed salary for the period: one month
     let fixedSalaryForPeriod = chatter.fixedSalary ?? 0;
 
-    // Sales commission = percentage on variable sales only (excludes BASE and fixed salary)
-    const salesCommission = (revenue * (chatter.commissionPercent ?? 0)) / 100;
+    // Bonuses paid to this chatter in the month
+    const bonus = bonusMap.get(chatter.id) || 0;
+    totalBonuses += bonus;
 
-    // Total retribution = TOTAL BASE + FIXED SALARY + SALES COMMISSION (matches chatter detail view)
-    const totalRetribution = totalBase + fixedSalaryForPeriod + salesCommission;
+    // Total retribution = TOTAL BASE + FIXED SALARY + SALES COMMISSION + BONUSES
+    const totalRetribution = totalBase + fixedSalaryForPeriod + salesCommission + bonus;
 
     // Calculate commission (full) based on compensation type (for backward compatibility)
     let commission = 0;
@@ -315,6 +357,7 @@ export async function getAdminDashboard(
       commission,
       fixedSalary: chatter.fixedSalary ?? 0,
       totalBase,
+      bonus,
       totalRetribution,
     });
   }
@@ -363,8 +406,9 @@ export async function getAdminDashboard(
         select: {
           amount: true,
           baseAmount: true,
+          useSpecialCommission: true,
           userId: true,
-          user: { select: { commissionPercent: true, fixedSalary: true } },
+          user: { select: { commissionPercent: true, specialCommissionPercent: true, fixedSalary: true } },
         },
       },
     },
@@ -436,21 +480,24 @@ export async function getAdminDashboard(
       : 0;
     
     // Calculate chatter commissions for this creator's sales. 
-    // For percentage-based chatters:
-    //   - commission% applies ONLY to variable sales (amount)
-    //   - BASE earnings are added 1:1
-    // Fixed salaries are NOT included here (handled separately in total commissions).
+    // For percentage-based chatters: use specialCommissionPercent when sale.useSpecialCommission
     let chatterCommissions = 0;
     for (const sale of creatorSales) {
-      const commissionPercent = (sale as { user?: { commissionPercent?: number } }).user?.commissionPercent;
-      if (commissionPercent) {
-        const variableAmount = sale.amount;
-        const baseEarnings = sale.baseAmount || 0;
-        chatterCommissions += (variableAmount * commissionPercent) / 100 + baseEarnings;
+      const user = (sale as { user?: { commissionPercent?: number; specialCommissionPercent?: number } }).user;
+      const basePct = user?.commissionPercent ?? 0;
+      const specialPct = user?.specialCommissionPercent ?? basePct;
+      const pct = (sale as { useSpecialCommission?: boolean }).useSpecialCommission && specialPct > 0 ? specialPct : basePct;
+      if (pct > 0) {
+        chatterCommissions += (sale.amount * pct) / 100;
       }
+      chatterCommissions += sale.baseAmount || 0;
     }
+
+    // Payment Processor Cost: % of (Revenue*0.8) - deducted from agency profit
+    const paymentProcessorCostPercent = creator.paymentProcessorCostPercent ?? 0;
+    const paymentProcessorCost = revenueAfterOnlyFans20 * (paymentProcessorCostPercent / 100);
     
-    // Agency profit: Net Revenue minus ALL costs, including chatter commissions.
+    // Agency profit: Net Revenue minus ALL costs, including chatter commissions and payment processor cost.
     // This matches the visual breakdown: Net Revenue
     //  - Chatter Commissions
     //  - Marketing Costs
@@ -462,7 +509,8 @@ export async function getAdminDashboard(
       financial.marketingCosts -
       financial.toolCosts -
       financial.otherCosts -
-      customCostsTotal;
+      customCostsTotal -
+      paymentProcessorCost;
 
     return {
       creatorId: creator.id,
@@ -478,6 +526,8 @@ export async function getAdminDashboard(
       toolCosts: financial.toolCosts,
       otherCosts: financial.otherCosts,
       customCosts: financial.customCosts || [],
+      paymentProcessorCostPercent: paymentProcessorCostPercent,
+      paymentProcessorCost,
       netRevenue,
       agencyProfit,
     };
@@ -490,6 +540,7 @@ export async function getAdminDashboard(
     totalCommissions,
     totalFixedSalaries,
     totalOwedToChatters,
+    totalBonuses,
     creatorFinancials,
   };
 }
@@ -517,6 +568,7 @@ export async function getChatterDetail(
       email: true,
       avatar: true,
       commissionPercent: true,
+      specialCommissionPercent: true,
       fixedSalary: true,
     },
   });
@@ -603,9 +655,12 @@ export async function getChatterDetail(
     dailyData[dayKey].count += 1;
     dailyData[dayKey].baseEarnings += sale.baseAmount || 0;
     
-    // Calculate percentage commission for this sale (EXCLUDING fixed salary and BASE)
-    if (user.commissionPercent) {
-      dailyData[dayKey].commissionPercentOnly += (sale.amount * user.commissionPercent) / 100;
+    // Calculate percentage commission: use special rate when sale.useSpecialCommission
+    const basePct = user.commissionPercent ?? 0;
+    const specialPct = user.specialCommissionPercent ?? basePct;
+    const pct = sale.useSpecialCommission && specialPct > 0 ? specialPct : basePct;
+    if (pct > 0) {
+      dailyData[dayKey].commissionPercentOnly += (sale.amount * pct) / 100;
     }
   });
 
@@ -664,12 +719,18 @@ export async function getChatterDetail(
 
   // Calculate totals
   const totalSales = sales.reduce((sum, sale) => sum + sale.amount, 0);
-  const totalVariableSales = sales.reduce((sum, sale) => sum + sale.amount, 0);
   const totalBaseEarnings = sales.reduce((sum, sale) => sum + (sale.baseAmount || 0), 0);
 
   // Total retribution = TOTAL BASE + FIXED SALARY (for month) + SALES COMMISSION (matches admin Revenue per Chatter)
+  // Sales commission uses per-sale rate (special when useSpecialCommission)
+  const basePct = user.commissionPercent ?? 0;
+  const specialPct = user.specialCommissionPercent ?? basePct;
+  let salesCommission = 0;
+  for (const sale of sales) {
+    const pct = sale.useSpecialCommission && specialPct > 0 ? specialPct : basePct;
+    salesCommission += (sale.amount * pct) / 100;
+  }
   const fixedSalaryForMonth = user.fixedSalary ?? 0;
-  const salesCommission = (totalVariableSales * (user.commissionPercent ?? 0)) / 100;
   const totalRetribution = totalBaseEarnings + fixedSalaryForMonth + salesCommission;
 
   const totalPayments = payments.reduce((sum, payment) => sum + payment.amount, 0);
