@@ -46,6 +46,8 @@ export interface AdminDashboardData {
     toolCosts: number;
     otherCosts: number;
     customCosts: Array<{ name: string; amount: number }>;
+    paymentProcessorCostPercent?: number;
+    paymentProcessorCost?: number;
     netRevenue: number;
     agencyProfit: number;
   }>;
