@@ -259,7 +259,13 @@ export default function GoalProgressCard({ progress, onViewDetails, creatorDetai
                 <>
                   <p className="font-semibold text-amber-800">Bonus to pay to chatters</p>
                   <p className="mt-1 text-amber-800">
-                    Pay ${goal.bonusAmount!.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} to chatters via each chatter’s <strong>Dashboard (Chatter Detail) → Register Payment</strong>. It will show in their Payment History.
+                    Pay ${goal.bonusAmount!.toLocaleString('en-US', {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}{' '}
+                    to chatters via each chatter&apos;s <strong>Dashboard (Chatter Detail) → Register Payment</strong>.
+                    Once paid, the bonus is automatically included in that chatter&apos;s monthly retribution for the
+                    goal&apos;s month and appears in their Payment History.
                   </p>
                 </>
               )}

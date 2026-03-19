@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Target, Filter, Trash2, Edit2, Gift } from 'lucide-react';
+import { Plus, Target, Filter, Trash2, Edit2, Gift, Users as UsersIcon } from 'lucide-react';
 import { goalService, Goal, GoalProgress } from '../services/goal.service';
 import { useAuthStore } from '../store/authStore';
 import { isAdmin } from '../utils/permissions';
@@ -124,6 +124,11 @@ export default function GoalsPage() {
   }
 
   const years = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i);
+  const currentMonthName = new Date().toLocaleString('default', { month: 'long' });
+  const bonusMonthName =
+    selectedMonth && selectedMonth > 0
+      ? new Date(selectedYear, selectedMonth - 1).toLocaleString('default', { month: 'long' })
+      : currentMonthName;
 
   return (
     <div className="space-y-6">
@@ -200,9 +205,9 @@ export default function GoalsPage() {
               className="input"
             >
               <option value="">All Types</option>
-              <option value="SALES">Sales</option>
-              <option value="COMMISSION">Commission</option>
-              <option value="REVENUE">Revenue</option>
+              <option value="SALES">Chatter Sales Goal</option>
+              <option value="COMMISSION">Commission Goal</option>
+              <option value="REVENUE">Revenue Goal (Creator / Global)</option>
             </select>
           </div>
         </div>
@@ -278,7 +283,19 @@ export default function GoalsPage() {
                     <div className="flex items-center gap-2 mb-2">
                       <Target className="w-5 h-5 text-primary-600" />
                       <h3 className="text-lg font-semibold text-gray-900">
-                        {goal.type === 'SALES' ? 'Sales' : goal.type === 'COMMISSION' ? 'Commission' : 'Revenue'} Goal
+                        {(() => {
+                          if (goal.type === 'REVENUE') {
+                            if (goal.creatorId || goal.creator) return 'Creator Revenue Goal';
+                            if (!goal.userId && !goal.creatorId) return 'Global Revenue Goal';
+                            return 'Revenue Goal';
+                          }
+                          if (goal.type === 'SALES') {
+                            if (goal.userId || goal.user) return 'Chatter Sales Goal';
+                            return 'Sales Goal';
+                          }
+                          if (goal.type === 'COMMISSION') return 'Commission Goal';
+                          return 'Goal';
+                        })()}
                       </h3>
                     </div>
                     <p className="text-sm text-gray-600 mb-1">
@@ -321,13 +338,28 @@ export default function GoalsPage() {
         <h2 className="text-lg font-semibold text-gray-900 mb-3">How bonuses work</h2>
         <ul className="list-disc pl-5 space-y-2 text-sm text-gray-700">
           <li>
-            <strong>Who gets the bonus:</strong> The prize on a goal is a <strong>$ bonus for chatters</strong> when the creator’s revenue (or sales) target is reached. The creator (e.g. BIANCA) is the account whose revenue we track; chatters earn the bonus when that target is hit.
+            <strong>Chatter Sales Goal</strong>: each chatter hits a sales milestone with all creators. For example, if
+            a chatter sells $5,000 in {bonusMonthName} {selectedYear}, they get a $50 extra bonus.{' '}
+            <strong>To activate this goal</strong>, pick only the <strong>chatter&apos;s name</strong> and the{' '}
+            <strong>month</strong> (leave creator empty).
           </li>
           <li>
-            <strong>How chatters know they got a bonus:</strong> On this Goals page, when a goal shows <strong>“Goal Achieved!”</strong> and a prize amount, that bonus is earned. The card will say <strong>“You earned a bonus!”</strong> and that the amount will appear in Payments once paid.
+            <strong>Creator Revenue Goal</strong>: a specific creator&apos;s sales hit a milestone. For example, if
+            Bianca&apos;s sales in {bonusMonthName} {selectedYear} hit $12,000, each chatter gets a $50 bonus.{' '}
+            <strong>To activate this goal</strong>, pick only the <strong>creator&apos;s name</strong> and the{' '}
+            <strong>month</strong> (leave chatter empty).
           </li>
           <li>
-            <strong>Where to check the bonus once it’s paid:</strong> Chatters see it in <strong>Dashboard (Chatter Detail) → Payment History</strong>. Admins pay the bonus by going to each chatter’s Chatter Detail and using <strong>Register Payment</strong>; that payment then appears in that chatter’s Payment History.
+            <strong>Global Revenue Goal</strong>: the agency hits a global milestone (sum of ALL creators). For
+            example, if total sales in {bonusMonthName} {selectedYear} reach $30,000, a specific chatter gets $50.{' '}
+            <strong>To activate this goal</strong>, pick only the <strong>chatter&apos;s name</strong> and the{' '}
+            <strong>month</strong> (leave creator empty, type = Revenue).
+          </li>
+          <li>
+            <strong>When bonus is applied:</strong> when a goal shows <strong>&quot;Goal Achieved!&quot;</strong> and a
+            prize amount, that bonus is earned. Once the admin registers the bonus as a payment, it is automatically
+            included in the <strong>{bonusMonthName} monthly retribution</strong> for the relevant chatter(s), and the
+            payment is visible in <strong>Dashboard (Chatter Detail) → Payment History</strong>.
           </li>
         </ul>
       </div>

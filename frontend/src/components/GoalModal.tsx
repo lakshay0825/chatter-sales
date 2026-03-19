@@ -70,7 +70,8 @@ export default function GoalModal({
   const loadUsers = async () => {
     setLoadingUsers(true);
     try {
-      const data = await userService.getUsers();
+      // Only show ACTIVE users when creating/editing goals
+      const data = await userService.getUsers({ isActive: true });
       setUsers(data);
     } catch (error: any) {
       console.error('Failed to load users:', error);

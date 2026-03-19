@@ -237,16 +237,18 @@ export default function CreatorFinancialCard({
               </span>
             )}
           </div>
-          {paymentProcessorCost > 0 && (
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-gray-600">
-                Payment Processor Cost {(paymentProcessorCostPercent ?? 0) > 0 ? `(${paymentProcessorCostPercent}% of Revenue×0.8)` : ''}
-              </span>
-              <span className="text-sm font-medium text-red-600">
-                -${paymentProcessorCost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </span>
-            </div>
-          )}
+          <div className="flex justify-between items-center">
+            <span className="text-sm text-gray-600">
+              Payment Processor Cost{' '}
+              {(paymentProcessorCostPercent ?? 0) > 0 ? `(${paymentProcessorCostPercent}% of Revenue×0.8)` : ''}
+            </span>
+            <span className="text-sm font-medium text-red-600">
+              -${paymentProcessorCost.toLocaleString('en-US', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}
+            </span>
+          </div>
 
           {/* Custom Costs */}
           {customCosts.length > 0 && (

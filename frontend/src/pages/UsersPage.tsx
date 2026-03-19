@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Plus, Edit, Trash2, Upload, X, Eye } from 'lucide-react';
+import { Plus, Edit, Trash2, Upload, X } from 'lucide-react';
 import { User, UserRole } from '../types';
 import { userService, CreateUserData } from '../services/user.service';
 import { uploadService } from '../services/upload.service';
@@ -32,10 +32,8 @@ export default function UsersPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [filterRole, setFilterRole] = useState<UserRole | ''>('');
-  const [uploadingPhoto, setUploadingPhoto] = useState<string | null>(null);
   const [uploadingAvatar, setUploadingAvatar] = useState<string | null>(null);
   const [viewingPhoto, setViewingPhoto] = useState<{ url: string; name: string } | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const avatarInputRef = useRef<HTMLInputElement>(null);
 
   const isAdmin = user?.role === UserRole.ADMIN;
@@ -181,55 +179,10 @@ export default function UsersPage() {
     }
   };
 
-  const handleFileSelect = (userId: string) => {
-    if (fileInputRef.current) {
-      fileInputRef.current.setAttribute('data-user-id', userId);
-      fileInputRef.current.click();
-    }
-  };
-
   const handleAvatarSelect = (userId: string) => {
     if (avatarInputRef.current) {
       avatarInputRef.current.setAttribute('data-user-id', userId);
       avatarInputRef.current.click();
-    }
-  };
-
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    const userId = fileInputRef.current?.getAttribute('data-user-id');
-
-    if (!file || !userId) return;
-
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
-      toast.error('Please select an image file');
-      return;
-    }
-
-    // Validate file size (5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('File size must be less than 5MB');
-      return;
-    }
-
-    setUploadingPhoto(userId);
-    startLoading('Uploading identification photo...');
-    try {
-      await uploadService.uploadUserIdentificationPhoto(userId, file);
-      toast.success('Identification photo uploaded successfully');
-      loadUsers();
-    } catch (error: any) {
-      toast.error(getUserFriendlyError(error, { 
-        action: 'upload', 
-        entity: 'identification photo' 
-      }));
-    } finally {
-      setUploadingPhoto(null);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
-      stopLoading();
     }
   };
 
@@ -431,23 +384,6 @@ export default function UsersPage() {
                         >
                           <Upload className="w-4 h-4" />
                         </button>
-                        {u.identificationPhoto && (
-                          <button
-                            onClick={() => setViewingPhoto({ url: u.identificationPhoto!, name: u.name })}
-                            className="text-green-600 hover:text-green-700"
-                            title="View identification photo"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </button>
-                        )}
-                        <button
-                          onClick={() => handleFileSelect(u.id)}
-                          disabled={uploadingPhoto === u.id}
-                          className="text-blue-600 hover:text-blue-700 disabled:opacity-50"
-                          title="Upload identification photo"
-                        >
-                          <Upload className="w-4 h-4" />
-                        </button>
                         <button
                           onClick={() => {
                             setSelectedUser(u);
@@ -612,15 +548,6 @@ export default function UsersPage() {
         </>
       )}
 
-      {/* Hidden file input for identification photo upload */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/jpeg,image/jpg,image/png,image/webp"
-        className="hidden"
-        onChange={handleFileUpload}
-      />
-
       {/* Hidden file input for avatar/profile photo upload */}
       <input
         ref={avatarInputRef}
@@ -630,35 +557,7 @@ export default function UsersPage() {
         onChange={handleAvatarUpload}
       />
 
-      {/* Photo Viewer Modal */}
-      {viewingPhoto && (
-        <div 
-          className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4"
-          onClick={() => setViewingPhoto(null)}
-        >
-          <div className="relative max-w-4xl w-full max-h-[90vh] bg-white rounded-lg overflow-hidden">
-            <div className="flex items-center justify-between p-4 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900">
-                Identification Photo - {viewingPhoto.name}
-              </h3>
-              <button
-                onClick={() => setViewingPhoto(null)}
-                className="text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                <X className="w-6 h-6" />
-              </button>
-            </div>
-            <div className="p-4 flex items-center justify-center bg-gray-50" style={{ minHeight: '400px' }}>
-              <img
-                src={viewingPhoto.url}
-                alt="Identification photo"
-                className="max-w-full max-h-[calc(90vh-120px)] object-contain rounded-lg shadow-lg"
-                onClick={(e) => e.stopPropagation()} // Prevent closing when clicking image
-              />
-            </div>
-          </div>
-        </div>
-      )}
+      {/* (No identification photo upload or viewer – only avatar upload is supported) */}
     </div>
   );
 }

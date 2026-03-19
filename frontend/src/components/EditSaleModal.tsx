@@ -11,29 +11,36 @@ import { canEditSale, canReassignSales } from '../utils/permissions';
 import toast from 'react-hot-toast';
 import { getUserFriendlyError } from '../utils/errorHandler';
 
-const updateSaleSchema = z.object({
-  creatorId: z.string().min(1, 'Creator is required'),
-  amount: z.number().min(0, 'Amount must be non-negative'),
-  baseAmount: z.number().min(0).optional(),
-  saleType: z.nativeEnum(SaleType),
-  note: z.string().optional(),
-  saleDate: z.date().optional(),
-  userId: z.string().optional(),
-}).refine((data) => {
-  // If saleType is BASE, amount can be 0, but baseAmount must be > 0
-  // Otherwise, if amount is provided, it must be > 0
-  if (data.saleType === SaleType.BASE && data.amount !== undefined) {
-    const baseAmountValue = data.baseAmount ?? 0;
-    return (data.amount === 0 && baseAmountValue > 0) || data.amount > 0;
-  }
-  if (data.amount !== undefined) {
-    return data.amount > 0;
-  }
-  return true;
-}, {
-  message: 'Amount must be positive, or if BASE type is selected, either amount or baseAmount must be positive',
-  path: ['amount'],
-});
+const updateSaleSchema = z
+  .object({
+    creatorId: z.string().min(1, 'Creator is required'),
+    amount: z.number().min(0, 'Amount must be non-negative'),
+    baseAmount: z.number().min(0).optional(),
+    saleType: z.nativeEnum(SaleType),
+    note: z.string().optional(),
+    saleDate: z.date().optional(),
+    userId: z.string().optional(),
+    useSpecialCommission: z.boolean().optional(),
+  })
+  .refine(
+    (data) => {
+      // If saleType is BASE, amount can be 0, but baseAmount must be > 0
+      // Otherwise, if amount is provided, it must be > 0
+      if (data.saleType === SaleType.BASE && data.amount !== undefined) {
+        const baseAmountValue = data.baseAmount ?? 0;
+        return (data.amount === 0 && baseAmountValue > 0) || data.amount > 0;
+      }
+      if (data.amount !== undefined) {
+        return data.amount > 0;
+      }
+      return true;
+    },
+    {
+      message:
+        'Amount must be positive, or if BASE type is selected, either amount or baseAmount must be positive',
+      path: ['amount'],
+    }
+  );
 
 type UpdateSaleFormData = z.infer<typeof updateSaleSchema>;
 
@@ -82,6 +89,8 @@ export default function EditSaleModal({
         note: sale.note || '',
         saleDate: new Date(sale.saleDate),
         userId: sale.userId,
+        // Cast to any in case older Sale type doesn't yet expose useSpecialCommission
+        useSpecialCommission: (sale as any).useSpecialCommission ?? false,
       });
     }
   }, [isOpen, sale, canReassign]);
@@ -145,6 +154,7 @@ export default function EditSaleModal({
         note: data.note,
         saleDate: data.saleDate,
         userId: canReassign ? data.userId : undefined,
+        useSpecialCommission: data.useSpecialCommission,
       };
 
       await saleService.updateSale(sale.id, updateData);
@@ -273,6 +283,25 @@ export default function EditSaleModal({
               </select>
             </div>
           )}
+
+          {/* Special Commission Rate */}
+          <div>
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="useSpecialCommission"
+                {...register('useSpecialCommission')}
+                className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                disabled={!canEdit}
+              />
+              <label htmlFor="useSpecialCommission" className="text-sm font-medium text-gray-700">
+                Special Commission Rate
+              </label>
+            </div>
+            <p className="mt-1 text-xs text-gray-500">
+              Use the higher commission % set in the chatter&apos;s settings for this sale.
+            </p>
+          </div>
 
           {/* Sale Date */}
           <div>

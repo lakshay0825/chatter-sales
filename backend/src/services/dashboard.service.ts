@@ -145,10 +145,12 @@ export async function getAdminDashboard(
   cumulative: boolean = false
 ): Promise<AdminDashboardResult> {
   // When cumulative/YTD is requested, build it as the sum of all monthly
-  // figures in the selected year so that YTD matches the sum of each month.
+  // figures from January up to the requested month so that YTD matches
+  // the sum of each month up to that point.
   if (cumulative) {
     const monthlyResults: AdminDashboardResult[] = [];
-    for (let m = 1; m <= 12; m++) {
+    // Aggregate from January (1) through the requested month
+    for (let m = 1; m <= month; m++) {
       const result = await getAdminDashboard(m, year, false);
       monthlyResults.push(result);
     }
@@ -245,7 +247,8 @@ export async function getAdminDashboard(
     );
 
     return {
-      month: 12,
+      // Indicate YTD up to the requested month
+      month,
       year,
       chatterRevenue,
       totalCommissions,
@@ -336,12 +339,15 @@ export async function getAdminDashboard(
     totalBonuses += bonus;
 
     // Total retribution = TOTAL BASE + FIXED SALARY + SALES COMMISSION + BONUSES
+    // This is the amount that should appear in the "Total Retribution" column.
     const totalRetribution = totalBase + fixedSalaryForPeriod + salesCommission + bonus;
-
-    // Calculate commission (full) based on compensation type (for backward compatibility)
+  
+    // "Commissions" column in the Revenue Per Chatter table should contain ONLY
+    // the percentage-based commission part (Sales * Commission Rate), without BASE.
+    // Fixed-salary-only chatters still show their fixed salary here for backwards compatibility.
     let commission = 0;
     if (chatter.commissionPercent) {
-      commission = salesCommission + baseEarnings;
+      commission = salesCommission;
     } else if (chatter.fixedSalary) {
       commission = chatter.fixedSalary;
     } else {
