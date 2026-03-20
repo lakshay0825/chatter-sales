@@ -33,7 +33,6 @@ export default function UsersPage() {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [filterRole, setFilterRole] = useState<UserRole | ''>('');
   const [uploadingAvatar, setUploadingAvatar] = useState<string | null>(null);
-  const [viewingPhoto, setViewingPhoto] = useState<{ url: string; name: string } | null>(null);
   const avatarInputRef = useRef<HTMLInputElement>(null);
 
   const isAdmin = user?.role === UserRole.ADMIN;

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Target, Filter, Trash2, Edit2, Gift, Users as UsersIcon } from 'lucide-react';
+import { Plus, Target, Filter, Trash2, Edit2, Gift } from 'lucide-react';
 import { goalService, Goal, GoalProgress } from '../services/goal.service';
 import { useAuthStore } from '../store/authStore';
 import { isAdmin } from '../utils/permissions';

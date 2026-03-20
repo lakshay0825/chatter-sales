@@ -267,7 +267,7 @@ export default function CreatorsPage() {
     } catch (error: any) {
       toast.error(getUserFriendlyError(error, { 
         action: 'upload', 
-        entity: uploadType === 'avatar' ? 'profile photo' : 'identification photo' 
+        entity: 'profile photo' 
       }));
     } finally {
       setUploadingAvatar(null);
