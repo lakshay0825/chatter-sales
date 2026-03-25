@@ -53,10 +53,10 @@ export async function createGoal(input: CreateGoalInput) {
     data: input,
     include: {
       user: {
-        select: { id: true, name: true, email: true },
+        select: { id: true, name: true, email: true, avatar: true },
       },
       creator: {
-        select: { id: true, name: true },
+        select: { id: true, name: true, avatar: true },
       },
     },
   });
@@ -72,10 +72,10 @@ export async function getGoalById(goalId: string) {
     where: { id: goalId },
     include: {
       user: {
-        select: { id: true, name: true, email: true },
+        select: { id: true, name: true, email: true, avatar: true },
       },
       creator: {
-        select: { id: true, name: true },
+        select: { id: true, name: true, avatar: true },
       },
     },
   });
@@ -119,10 +119,10 @@ export async function getGoals(filters: {
     where,
     include: {
       user: {
-        select: { id: true, name: true, email: true },
+        select: { id: true, name: true, email: true, avatar: true },
       },
       creator: {
-        select: { id: true, name: true },
+        select: { id: true, name: true, avatar: true },
       },
     },
     orderBy: [
@@ -160,10 +160,10 @@ export async function updateGoal(goalId: string, input: UpdateGoalInput) {
     data: input,
     include: {
       user: {
-        select: { id: true, name: true, email: true },
+        select: { id: true, name: true, email: true, avatar: true },
       },
       creator: {
-        select: { id: true, name: true },
+        select: { id: true, name: true, avatar: true },
       },
     },
   });
@@ -195,33 +195,41 @@ export async function getGoalProgress(goalId: string) {
 
   let current = 0;
 
+  const startDate = goal.month
+    ? new Date(goal.year, goal.month - 1, 1)
+    : new Date(goal.year, 0, 1);
+  const endDate = goal.month
+    ? new Date(goal.year, goal.month, 0, 23, 59, 59, 999)
+    : new Date(goal.year, 11, 31, 23, 59, 59, 999);
+
   if (goal.type === 'SALES') {
+    // Chatter Sales Goal: chatter's total sales across all creators
     if (goal.userId) {
       current = await getUserSalesTotal(goal.userId, goal.month || 1, goal.year);
-    } else if (goal.creatorId) {
-      // Get total sales for creator
-      const startDate = goal.month 
-        ? new Date(goal.year, goal.month - 1, 1)
-        : new Date(goal.year, 0, 1);
-      const endDate = goal.month
-        ? new Date(goal.year, goal.month, 0, 23, 59, 59, 999)
-        : new Date(goal.year, 11, 31, 23, 59, 59, 999);
-
-      const sales = await prisma.sale.aggregate({
-        where: {
-          creatorId: goal.creatorId,
-          saleDate: {
-            gte: startDate,
-            lte: endDate,
-          },
-        },
-        _sum: { amount: true },
-      });
-
-      current = sales._sum.amount || 0;
     }
   } else if (goal.type === 'COMMISSION' && goal.userId) {
     current = await calculateCommission(goal.userId, goal.month || 1, goal.year);
+  } else if (goal.type === 'REVENUE') {
+    // Creator Revenue Goal: single creator's sales
+    if (goal.creatorId) {
+      const sales = await prisma.sale.aggregate({
+        where: {
+          creatorId: goal.creatorId,
+          saleDate: { gte: startDate, lte: endDate },
+        },
+        _sum: { amount: true },
+      });
+      current = sales._sum.amount || 0;
+    } else if (goal.userId) {
+      // Global Revenue Goal: agency total (sum of ALL creators' sales)
+      const sales = await prisma.sale.aggregate({
+        where: {
+          saleDate: { gte: startDate, lte: endDate },
+        },
+        _sum: { amount: true },
+      });
+      current = sales._sum.amount || 0;
+    }
   }
 
   const progress = goal.target > 0 ? (current / goal.target) * 100 : 0;

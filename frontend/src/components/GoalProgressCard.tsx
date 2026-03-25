@@ -22,16 +22,14 @@ export default function GoalProgressCard({ progress, onViewDetails, creatorDetai
   };
 
   const getGoalTypeLabel = () => {
-    switch (goal.type) {
-      case 'SALES':
-        return 'Sales';
-      case 'COMMISSION':
-        return 'Commission';
-      case 'REVENUE':
-        return 'Revenue';
-      default:
-        return goal.type;
+    if (goal.type === 'REVENUE') {
+      if (goal.creatorId || goal.creator) return 'Creator Revenue';
+      if (goal.userId || goal.user) return 'Global Revenue';
+      return 'Revenue';
     }
+    if (goal.type === 'SALES' && (goal.userId || goal.user)) return 'Chatter Sales';
+    if (goal.type === 'COMMISSION') return 'Commission';
+    return goal.type;
   };
 
   const getGoalPeriod = () => {
@@ -56,53 +54,57 @@ export default function GoalProgressCard({ progress, onViewDetails, creatorDetai
   };
 
   const getGoalScope = () => {
-    if (goal.user) {
-      return `User goal for ${goal.user.name}`;
-    }
-    if (goal.creator) {
-      return `Creator goal for ${goal.creator.name}`;
-    }
+    if (goal.user && goal.type === 'SALES') return `Chatter sales goal for ${goal.user.name}`;
+    if (goal.user && goal.type === 'REVENUE') return `Global revenue goal – bonus for ${goal.user.name}`;
+    if (goal.creator) return `Creator revenue goal for ${goal.creator.name}`;
     return 'Global goal';
   };
 
   const renderBonusDescription = () => {
     if (!goal.bonusAmount || goal.bonusAmount <= 0) return null;
 
-    // Human-friendly description of what unlocks the bonus
     const baseText = `$${goal.bonusAmount.toLocaleString('en-US', {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     })}`;
+    const targetText = `$${goal.target.toLocaleString('en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
 
-    if (goal.creator) {
-      const creatorName = creatorDetails?.name || goal.creator.name;
-      const metricLabel =
-        goal.type === 'SALES'
-          ? 'sales'
-          : goal.type === 'COMMISSION'
-          ? 'commission'
-          : 'revenue';
-
-      // Chatter-facing copy
+    // Creator Revenue Goal: creator's sales hit milestone → each chatter gets bonus
+    if (goal.creator || creatorDetails) {
+      const creatorName = creatorDetails?.name || goal.creator?.name;
       return (
         <p className="text-xs text-gray-600">
-          {isChatterView
-            ? `${baseText} bonus will be unlocked for chatters if ${creatorName} reaches ${metricLabel} of $${goal.target.toLocaleString(
-                'en-US',
-                { minimumFractionDigits: 2, maximumFractionDigits: 2 }
-              )} in this period.`
-            : `Bonus: ${baseText} when ${creatorName} reaches ${metricLabel} of $${goal.target.toLocaleString(
-                'en-US',
-                { minimumFractionDigits: 2, maximumFractionDigits: 2 }
-              )}.`}
+          {baseText} bonus for each chatter when {creatorName}&apos;s revenue reaches {targetText}.
         </p>
       );
     }
 
-    // Fallback for non-creator goals
+    // Chatter Sales Goal: that chatter's sales hit milestone → that chatter gets bonus
+    if (goal.type === 'SALES' && (goal.userId || goal.user)) {
+      const chatterName = goal.user?.name || 'Chatter';
+      return (
+        <p className="text-xs text-gray-600">
+          {baseText} bonus for {chatterName} when their sales reach {targetText}.
+        </p>
+      );
+    }
+
+    // Global Revenue Goal: agency total hits milestone → that chatter gets bonus
+    if (goal.type === 'REVENUE' && (goal.userId || goal.user)) {
+      const chatterName = goal.user?.name || 'Chatter';
+      return (
+        <p className="text-xs text-gray-600">
+          {baseText} bonus for {chatterName} when agency total revenue reaches {targetText}.
+        </p>
+      );
+    }
+
     return (
       <p className="text-xs text-gray-600">
-        Bonus: {baseText} will be unlocked when this goal is achieved.
+        Bonus: {baseText} when this goal is achieved.
       </p>
     );
   };
@@ -114,7 +116,7 @@ export default function GoalProgressCard({ progress, onViewDetails, creatorDetai
 
   return (
     <div className="card hover:shadow-lg transition-shadow">
-      {/* Top row: Creator (photo + name) + Prize (gift + amount) */}
+      {/* Top row: Creator or Chatter (photo + name) + Prize (gift + amount) */}
       <div className="flex flex-wrap items-center gap-3 mb-4 pb-3 border-b border-gray-200">
         {isCreatorGoal && (
           <div className="flex items-center gap-2">
@@ -132,6 +134,25 @@ export default function GoalProgressCard({ progress, onViewDetails, creatorDetai
             <div>
               <p className="text-xs text-gray-500 font-medium">Creator</p>
               <p className="text-sm font-semibold text-gray-900">{creatorName || 'Creator'}</p>
+            </div>
+          </div>
+        )}
+        {(goal.userId || goal.user) && !isCreatorGoal && (
+          <div className="flex items-center gap-2">
+            {(goal.user as { avatar?: string })?.avatar ? (
+              <img
+                src={(goal.user as { avatar?: string }).avatar}
+                alt={goal.user?.name || 'Chatter'}
+                className="w-9 h-9 rounded-full object-cover ring-2 ring-white shadow-sm"
+              />
+            ) : (
+              <div className="w-9 h-9 rounded-full bg-green-100 flex items-center justify-center text-green-700 text-sm font-semibold ring-2 ring-white shadow-sm">
+                {(goal.user?.name || 'U').charAt(0).toUpperCase()}
+              </div>
+            )}
+            <div>
+              <p className="text-xs text-gray-500 font-medium">Chatter</p>
+              <p className="text-sm font-semibold text-gray-900">{goal.user?.name || 'Chatter'}</p>
             </div>
           </div>
         )}

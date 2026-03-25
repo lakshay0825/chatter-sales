@@ -229,3 +229,16 @@ model Payment {
   @@map("payments")
 }
 
+model GlobalFixedCost {
+  id        String   @id @default(cuid())
+  year      Int
+  month     Int      // 1-12
+  name      String
+  amount    Float    @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([year, month])
+  @@map("global_fixed_costs")
+}
+

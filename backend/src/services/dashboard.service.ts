@@ -118,6 +118,9 @@ type AdminDashboardResult = {
   totalFixedSalaries?: number;
   totalOwedToChatters?: number;
   totalBonuses?: number;
+  globalFixedCosts?: Array<{ id: string; name: string; amount: number }>;
+  totalGlobalFixedCosts?: number;
+  totalFixedCosts?: number;
   creatorFinancials: Array<{
     creatorId: string;
     creatorName: string;
@@ -246,6 +249,16 @@ export async function getAdminDashboard(
       0
     );
 
+    const totalGlobalFixedCosts: number = monthlyResults.reduce(
+      (sum, res) => sum + (res.totalGlobalFixedCosts || 0),
+      0
+    );
+
+    const totalFixedCosts: number = monthlyResults.reduce(
+      (sum, res) => sum + (res.totalFixedCosts || 0),
+      0
+    );
+
     return {
       // Indicate YTD up to the requested month
       month,
@@ -255,7 +268,11 @@ export async function getAdminDashboard(
       totalFixedSalaries,
       totalOwedToChatters,
       totalBonuses,
+      totalGlobalFixedCosts,
+      totalFixedCosts,
       creatorFinancials,
+      // Keep row-level details out of the cumulative dashboard (editing is monthly-only)
+      globalFixedCosts: [],
     };
   }
 
@@ -380,6 +397,18 @@ export async function getAdminDashboard(
       totalFixedSalaries += chatter.fixedSalary;
     }
   }
+
+  // Global fixed costs (hosting, tools, etc. not tied to a specific creator)
+  const globalFixedCosts = await prisma.globalFixedCost.findMany({
+    where: { year, month },
+    select: { id: true, name: true, amount: true },
+    orderBy: { createdAt: 'asc' },
+  });
+  const totalGlobalFixedCosts: number = globalFixedCosts.reduce(
+    (sum: number, c: { amount: number }) => sum + (c.amount || 0),
+    0
+  );
+  const totalFixedCosts = totalFixedSalaries + totalBonuses + totalGlobalFixedCosts;
 
   // For the selected month, compute total amount owed to all chatters:
   //   total commissions (percentage + BASE + fixed) minus payments sent in the same period.
@@ -547,8 +576,46 @@ export async function getAdminDashboard(
     totalFixedSalaries,
     totalOwedToChatters,
     totalBonuses,
+    globalFixedCosts,
+    totalGlobalFixedCosts,
+    totalFixedCosts,
     creatorFinancials,
   };
+}
+
+export async function getGlobalFixedCosts(month: number, year: number) {
+  return prisma.globalFixedCost.findMany({
+    where: { year, month },
+    select: { id: true, name: true, amount: true },
+    orderBy: { createdAt: 'asc' },
+  });
+}
+
+export async function upsertGlobalFixedCosts(
+  month: number,
+  year: number,
+  costs: Array<{ name: string; amount: number }>
+) {
+  const sanitized = costs
+    .map((c) => ({
+      name: c.name?.trim() || '',
+      amount: Number(c.amount) || 0,
+    }))
+    .filter((c) => c.name.length > 0 && c.amount > 0);
+
+  await prisma.$transaction(async (tx) => {
+    await tx.globalFixedCost.deleteMany({
+      where: { year, month },
+    });
+
+    if (sanitized.length > 0) {
+      await tx.globalFixedCost.createMany({
+        data: sanitized.map((c) => ({ ...c, year, month })),
+      });
+    }
+  });
+
+  return getGlobalFixedCosts(month, year);
 }
 
 /**

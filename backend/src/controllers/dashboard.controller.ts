@@ -1,5 +1,11 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { getChatterDashboard, getAdminDashboard, getSalesStats, getChatterDetail } from '../services/dashboard.service';
+import {
+  getChatterDashboard,
+  getAdminDashboard,
+  getSalesStats,
+  getChatterDetail,
+  upsertGlobalFixedCosts,
+} from '../services/dashboard.service';
 import { ApiResponse } from '../types';
 
 export async function getChatterDashboardHandler(
@@ -104,5 +110,35 @@ export async function getChatterDetailHandler(
   };
 
   return reply.code(200).send(response);
+}
+
+export async function upsertGlobalFixedCostsHandler(
+  request: FastifyRequest<{
+    Querystring: { month: string; year: string };
+    Body: { costs?: Array<{ name: string; amount: number }> };
+  }>,
+  reply: FastifyReply
+) {
+  const month = parseInt(request.query.month, 10);
+  const year = parseInt(request.query.year, 10);
+  const costs = request.body?.costs ?? [];
+
+  const savedCosts = await upsertGlobalFixedCosts(month, year, costs);
+  const totalGlobalFixedCosts: number = savedCosts.reduce(
+    (sum: number, c: { amount: number }) => sum + (c.amount || 0),
+    0
+  );
+
+  const response: ApiResponse<typeof savedCosts> = {
+    success: true,
+    data: savedCosts,
+    message: `Global fixed costs saved for ${year}-${month}`,
+  };
+
+  // Frontend derives totals from list, but returning the total keeps the API self-contained.
+  return reply.code(200).send({
+    ...response,
+    totalGlobalFixedCosts,
+  });
 }
 

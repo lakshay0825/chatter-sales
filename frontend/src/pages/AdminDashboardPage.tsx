@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { TrendingUp, Coins, Zap, BarChart3 } from 'lucide-react';
+import { TrendingUp, Coins, Zap, BarChart3, Plus, Trash2 } from 'lucide-react';
 import { dashboardService, AdminDashboardData } from '../services/dashboard.service';
 import { creatorService } from '../services/creator.service';
 import { getCurrentMonthYear, getMonthName } from '../utils/date';
@@ -17,6 +17,8 @@ export default function AdminDashboardPage() {
   const [selectedMonth, setSelectedMonth] = useState(getCurrentMonthYear().month);
   const [selectedYear, setSelectedYear] = useState(getCurrentMonthYear().year);
   const [viewMode, setViewMode] = useState<'monthly' | 'cumulative'>('monthly');
+  const [globalFixedCostsDraft, setGlobalFixedCostsDraft] = useState<Array<{ name: string; amount: number }>>([]);
+  const [isSavingGlobalFixedCosts, setIsSavingGlobalFixedCosts] = useState(false);
 
   const isAdmin = user?.role === 'ADMIN';
 
@@ -32,6 +34,11 @@ export default function AdminDashboardPage() {
     loadDashboard();
     loadCreators();
   }, [selectedMonth, selectedYear, viewMode]);
+
+  useEffect(() => {
+    const list = dashboardData?.globalFixedCosts ?? [];
+    setGlobalFixedCostsDraft(list.map((c) => ({ name: c.name, amount: c.amount })));
+  }, [dashboardData, viewMode]);
 
   const loadDashboard = async () => {
     setIsLoading(true);
@@ -76,6 +83,12 @@ export default function AdminDashboardPage() {
     year: selectedYear,
     chatterRevenue: [],
     totalCommissions: 0,
+    totalFixedSalaries: 0,
+    totalBonuses: 0,
+    totalOwedToChatters: 0,
+    globalFixedCosts: [],
+    totalGlobalFixedCosts: 0,
+    totalFixedCosts: 0,
     creatorFinancials: [],
   };
 
@@ -84,25 +97,60 @@ export default function AdminDashboardPage() {
   const totalCommissions = safeDashboardData.totalCommissions;
   const totalFixedSalaries = safeDashboardData.totalFixedSalaries || 0;
   const totalOwedToChatters = safeDashboardData.totalOwedToChatters || 0;
+  const totalGlobalFixedCosts = safeDashboardData.totalGlobalFixedCosts || 0;
   const totalBonuses =
     safeDashboardData.totalBonuses ??
     safeDashboardData.chatterRevenue.reduce((sum, item) => sum + (item.bonus ?? 0), 0);
-  // Agency earnings: sum of creator-level net revenue (after OnlyFans, creator earnings, and including cashback),
-  // minus all creator-level costs and chatter percentage commissions (handled in agencyProfit on the backend),
-  // minus fixed salaries (agency earnings).
-  const totalAgencyEarnings =
+  const totalFixedCosts = totalFixedSalaries + totalBonuses + totalGlobalFixedCosts;
+  // Agency profit: creator-level agency profit (backend) minus TOTAL FIXED COSTS
+  // (chatters fixed salaries + chatters bonuses + global fixed costs).
+  const totalAgencyProfit =
     safeDashboardData.creatorFinancials.reduce(
       (sum, item) => sum + (item.agencyProfit ?? item.netRevenue),
       0
     ) -
-    totalFixedSalaries -
-    totalBonuses;
+    totalFixedCosts;
   
   const hasNoData = safeDashboardData.chatterRevenue.length === 0 && safeDashboardData.creatorFinancials.length === 0;
 
   const months = Array.from({ length: 12 }, (_, i) => i + 1);
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: currentYear - 2019 }, (_, i) => currentYear - i);
+
+  const isGlobalFixedCostsEditable = viewMode === 'monthly';
+
+  const handleAddGlobalFixedCostRow = () => {
+    setGlobalFixedCostsDraft((prev) => [...prev, { name: '', amount: 0 }]);
+  };
+
+  const handleUpdateGlobalFixedCostRow = (index: number, field: 'name' | 'amount', value: string | number) => {
+    setGlobalFixedCostsDraft((prev) => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], [field]: value };
+      return updated;
+    });
+  };
+
+  const handleRemoveGlobalFixedCostRow = (index: number) => {
+    setGlobalFixedCostsDraft((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleSaveGlobalFixedCosts = async () => {
+    setIsSavingGlobalFixedCosts(true);
+    try {
+      const sanitized = globalFixedCostsDraft
+        .map((c) => ({ name: (c.name || '').trim(), amount: Number(c.amount) || 0 }))
+        .filter((c) => c.name.length > 0 && c.amount > 0);
+
+      await dashboardService.upsertGlobalFixedCosts(selectedMonth, selectedYear, sanitized);
+      toast.success('Custom fixed costs saved');
+      await loadDashboard();
+    } catch (error: any) {
+      toast.error(getUserFriendlyError(error, { action: 'update', entity: 'global fixed costs' }));
+    } finally {
+      setIsSavingGlobalFixedCosts(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -161,7 +209,7 @@ export default function AdminDashboardPage() {
       </div>
 
       {/* Key Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
         <div className="card bg-gradient-to-br from-primary-50 to-primary-100/50 border-primary-200 hover:shadow-lg transition-shadow">
           <div className="flex items-center justify-between mb-4">
             <div className="p-3 bg-primary-500 rounded-xl shadow-sm">
@@ -173,6 +221,19 @@ export default function AdminDashboardPage() {
             ${totalRevenue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </p>
           <p className="text-xs text-gray-500">All sales revenue</p>
+        </div>
+
+        <div className="card bg-gradient-to-br from-gray-50 to-gray-100/50 border-gray-200 hover:shadow-lg transition-shadow">
+          <div className="flex items-center justify-between mb-4">
+            <div className="p-3 bg-gray-500 rounded-xl shadow-sm">
+              <Coins className="w-6 h-6 text-white" />
+            </div>
+          </div>
+          <h3 className="text-sm font-medium text-gray-600 mb-2">Total Fixed Costs</h3>
+          <p className="text-3xl font-bold text-gray-900 mb-1">
+            ${totalFixedCosts.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </p>
+          <p className="text-xs text-gray-500">Fixed salaries + bonuses + custom</p>
         </div>
 
         <div className="card bg-gradient-to-br from-yellow-50 to-yellow-100/50 border-yellow-200 hover:shadow-lg transition-shadow">
@@ -207,9 +268,9 @@ export default function AdminDashboardPage() {
               <TrendingUp className="w-6 h-6 text-white" />
             </div>
           </div>
-          <h3 className="text-sm font-medium text-gray-600 mb-2">Agency Earnings</h3>
+          <h3 className="text-sm font-medium text-gray-600 mb-2">Agency Profit</h3>
           <p className="text-3xl font-bold text-gray-900 mb-1">
-            ${totalAgencyEarnings.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            ${totalAgencyProfit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </p>
           <p className="text-xs text-gray-500">Net profit</p>
         </div>
@@ -253,7 +314,7 @@ export default function AdminDashboardPage() {
                   Revenue
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                  Commissions
+                  Commissions (%)
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                   Bonus
@@ -444,13 +505,14 @@ export default function AdminDashboardPage() {
             (amount) plus BASE earnings paid 1:1 to chatters; fixed salaries are tracked separately in the total commissions box.
           </li>
           <li>
-            <span className="font-semibold">Agency Earnings</span> is the sum of creator-level Agency Profit
+            <span className="font-semibold">Agency Profit</span> is the sum of creator-level Agency Profit
             (Net Revenue minus chatters commissions, marketing costs, Infloww costs, and custom costs only),
-            minus monthly fixed salaries paid to chatters and chatter managers.
+            minus <span className="font-semibold">TOTAL FIXED COSTS</span>.
           </li>
           <li>
-            <span className="font-semibold">Fixed Salaries</span> are monthly fixed payments to chatters that are
-            tracked separately from percentage-based commissions and are subtracted from Agency Earnings.
+            <span className="font-semibold">TOTAL FIXED COSTS</span> =
+            chatters fixed salaries + chatters bonuses + global custom fixed costs
+            (hosting/tools not tied to a specific creator).
           </li>
           <li>
             <span className="font-semibold">BASE Earnings</span> are additional earnings paid 1:1 to chatters
@@ -463,6 +525,106 @@ export default function AdminDashboardPage() {
             20% fee), regardless of whether cashback exists.
           </li>
         </ul>
+      </div>
+
+      {/* Custom Fixed Costs (global, not tied to any creator) */}
+      <div className="card">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-semibold text-gray-900">Custom Fixed Costs</h2>
+          <div className="text-xs text-gray-500">{viewMode === 'monthly' ? 'Hosting/tools not tied to a creator' : 'Switch to Monthly to edit'}</div>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-gray-50 border-b border-gray-200">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase w-24">
+                  {viewMode === 'monthly' ? 'Action' : ''}
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              {globalFixedCostsDraft.length === 0 ? (
+                <tr>
+                  <td colSpan={3} className="px-6 py-6 text-center text-gray-500">
+                    No custom fixed costs set
+                  </td>
+                </tr>
+              ) : (
+                globalFixedCostsDraft.map((cost, index) => (
+                  <tr key={index} className="hover:bg-gray-50">
+                    <td className="px-6 py-4">
+                      {isGlobalFixedCostsEditable ? (
+                        <input
+                          type="text"
+                          value={cost.name}
+                          onChange={(e) => handleUpdateGlobalFixedCostRow(index, 'name', e.target.value)}
+                          className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary-500"
+                          placeholder="e.g. Hosting"
+                        />
+                      ) : (
+                        <span className="text-sm font-medium text-gray-900">{cost.name || '—'}</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4">
+                      {isGlobalFixedCostsEditable ? (
+                        <input
+                          type="number"
+                          value={cost.amount}
+                          onChange={(e) => handleUpdateGlobalFixedCostRow(index, 'amount', parseFloat(e.target.value) || 0)}
+                          step="0.01"
+                          min="0"
+                          className="w-32 px-2 py-1 text-sm font-medium text-red-600 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary-500"
+                        />
+                      ) : (
+                        <span className="text-sm font-medium text-gray-900">
+                          ${cost.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4">
+                      {isGlobalFixedCostsEditable ? (
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveGlobalFixedCostRow(index)}
+                          className="p-1 text-red-400 hover:text-red-600 transition-colors"
+                          title="Delete row"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      ) : null}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {viewMode === 'monthly' && (
+          <div className="mt-4 flex items-center justify-between gap-3">
+            <button
+              type="button"
+              onClick={handleAddGlobalFixedCostRow}
+              className="flex items-center gap-2 text-sm text-primary-600 hover:text-primary-700 font-medium"
+              disabled={isSavingGlobalFixedCosts}
+            >
+              <Plus className="w-4 h-4" />
+              Add cost row
+            </button>
+
+            <button
+              type="button"
+              onClick={handleSaveGlobalFixedCosts}
+              className="btn btn-primary text-sm"
+              disabled={isSavingGlobalFixedCosts}
+            >
+              {isSavingGlobalFixedCosts ? 'Saving...' : 'Save fixed costs'}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

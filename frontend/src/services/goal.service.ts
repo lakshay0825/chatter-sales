@@ -16,10 +16,12 @@ export interface Goal {
     id: string;
     name: string;
     email: string;
+    avatar?: string;
   };
   creator?: {
     id: string;
     name: string;
+    avatar?: string;
   };
 }
 

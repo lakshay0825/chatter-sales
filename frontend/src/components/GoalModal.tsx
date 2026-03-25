@@ -174,28 +174,37 @@ export default function GoalModal({
             </label>
             <select
               value={formData.type}
-              onChange={(e) =>
-                setFormData({ ...formData, type: e.target.value as 'SALES' | 'COMMISSION' | 'REVENUE' })
-              }
+              onChange={(e) => {
+                const newType = e.target.value as 'SALES' | 'COMMISSION' | 'REVENUE';
+                setFormData({
+                  ...formData,
+                  type: newType,
+                  // Clear selections that don't match the new type
+                  userId: newType === 'REVENUE' && formData.creatorId ? '' : formData.userId,
+                  creatorId: newType === 'SALES' || (newType === 'REVENUE' && formData.userId) ? '' : formData.creatorId,
+                });
+              }}
               className="input"
               disabled={!!goal}
               required
             >
-              <option value="SALES">Sales</option>
-              <option value="COMMISSION">Commission</option>
-              <option value="REVENUE">Revenue</option>
+              <option value="SALES">Chatter Sales Goal</option>
+              <option value="COMMISSION">Commission Goal</option>
+              <option value="REVENUE">Creator / Global Revenue Goal</option>
             </select>
             <p className="text-xs text-gray-500 mt-1">
-              {formData.type === 'SALES' && 'Total sales amount target'}
+              {formData.type === 'SALES' && 'Chatter hits sales milestone across all creators'}
               {formData.type === 'COMMISSION' && 'Commission amount target'}
-              {formData.type === 'REVENUE' && 'Revenue amount target'}
+              {formData.type === 'REVENUE' && 'Creator revenue OR agency-wide total revenue'}
             </p>
           </div>
 
           {/* User or Creator */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">User (Optional)</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Chatter {formData.type === 'REVENUE' ? '(for Global Revenue – who gets the bonus)' : '(for Chatter Sales)'}
+              </label>
               <select
                 value={formData.userId}
                 onChange={(e) => {
@@ -218,7 +227,9 @@ export default function GoalModal({
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Creator (Optional)</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Creator {formData.type === 'REVENUE' ? '(for Creator Revenue only)' : '(disabled for Chatter Sales)'}
+              </label>
               <select
                 value={formData.creatorId}
                 onChange={(e) => {
@@ -229,7 +240,7 @@ export default function GoalModal({
                   });
                 }}
                 className="input"
-                disabled={!!goal || loadingCreators || !!formData.userId}
+                disabled={!!goal || loadingCreators || !!formData.userId || formData.type === 'SALES'}
               >
                 <option value="">Select creator...</option>
                 {creators.map((creator) => (
@@ -241,10 +252,13 @@ export default function GoalModal({
             </div>
           </div>
 
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-            <p className="text-sm text-blue-800">
-              <strong>Note:</strong> Select either a User OR a Creator. Leave both empty for global goals (if applicable).
-            </p>
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 space-y-2">
+            <p className="text-sm text-blue-800 font-medium">To activate:</p>
+            <ul className="text-xs text-blue-800 list-disc pl-4 space-y-1">
+              <li><strong>Chatter Sales Goal:</strong> Pick only the chatter&apos;s name + month. Bonus when that chatter hits the sales milestone.</li>
+              <li><strong>Creator Revenue Goal:</strong> Pick only the creator&apos;s name + month. Bonus to each chatter when that creator&apos;s revenue hits the milestone.</li>
+              <li><strong>Global Revenue Goal:</strong> Pick only the chatter&apos;s name + month (leave creator empty). Bonus to that chatter when agency total revenue hits the milestone.</li>
+            </ul>
           </div>
 
           {/* Year and Month */}
@@ -337,8 +351,8 @@ export default function GoalModal({
             </p>
           </div>
 
-          {/* Preview: creator icon, target amount, prize (gift) */}
-          {(formData.creatorId || formData.target > 0 || (formData.bonusAmount != null && formData.bonusAmount > 0)) && (
+          {/* Preview: creator/chatter icon, target amount, prize (gift) */}
+          {(formData.creatorId || formData.userId || formData.target > 0 || (formData.bonusAmount != null && formData.bonusAmount > 0)) && (
             <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 space-y-3">
               <p className="text-sm font-semibold text-gray-700">Preview</p>
               {formData.creatorId && (
@@ -362,6 +376,36 @@ export default function GoalModal({
                         )}
                         <div>
                           <p className="text-xs text-gray-500 font-medium">Creator</p>
+                          <p className="text-sm font-semibold text-gray-900">{name}</p>
+                        </div>
+                      </>
+                    );
+                  })()}
+                </div>
+              )}
+              {formData.userId && !formData.creatorId && (
+                <div className="flex items-center gap-2 p-2 rounded-lg bg-white border border-gray-100">
+                  {(() => {
+                    const selectedUser = users.find((u) => u.id === formData.userId);
+                    const name = selectedUser?.name ?? 'Chatter';
+                    const avatar = selectedUser?.avatar;
+                    return (
+                      <>
+                        {avatar ? (
+                          <img
+                            src={avatar}
+                            alt={name}
+                            className="w-9 h-9 rounded-full object-cover ring-2 ring-white shadow-sm"
+                          />
+                        ) : (
+                          <div className="w-9 h-9 rounded-full bg-green-100 flex items-center justify-center text-green-700 text-sm font-semibold">
+                            {name.charAt(0).toUpperCase()}
+                          </div>
+                        )}
+                        <div>
+                          <p className="text-xs text-gray-500 font-medium">
+                            {formData.type === 'SALES' ? 'Chatter (Sales)' : 'Chatter (Global bonus)'}
+                          </p>
                           <p className="text-sm font-semibold text-gray-900">{name}</p>
                         </div>
                       </>

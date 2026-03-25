@@ -32,6 +32,9 @@ export interface AdminDashboardData {
   totalFixedSalaries?: number; // Total fixed salaries for agency earnings calculation
   totalOwedToChatters?: number;
   totalBonuses?: number;
+  globalFixedCosts?: Array<{ id: string; name: string; amount: number }>;
+  totalGlobalFixedCosts?: number;
+  totalFixedCosts?: number;
   creatorFinancials: Array<{
     creatorId: string;
     creatorName: string;
@@ -94,6 +97,15 @@ export const dashboardService = {
     const response = await api.get<ApiResponse<AdminDashboardData>>('/dashboard/admin', {
       params,
     });
+    return response.data.data!;
+  },
+
+  async upsertGlobalFixedCosts(month: number, year: number, costs: Array<{ name: string; amount: number }>) {
+    const response = await api.put<ApiResponse<Array<{ id: string; name: string; amount: number }>>>(
+      '/dashboard/admin/global-fixed-costs',
+      { costs },
+      { params: { month, year } }
+    );
     return response.data.data!;
   },
 
