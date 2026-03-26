@@ -188,7 +188,17 @@ export async function deleteGoal(goalId: string) {
  * Get goal progress (current vs target)
  */
 export async function getGoalProgress(goalId: string) {
-  const goal = await prisma.goal.findUnique({ where: { id: goalId } });
+  const goal = await prisma.goal.findUnique({
+    where: { id: goalId },
+    include: {
+      user: {
+        select: { id: true, name: true, email: true, avatar: true },
+      },
+      creator: {
+        select: { id: true, name: true, avatar: true },
+      },
+    },
+  });
   if (!goal) {
     throw new NotFoundError('Goal not found');
   }
@@ -204,7 +214,17 @@ export async function getGoalProgress(goalId: string) {
 
   if (goal.type === 'SALES') {
     // Chatter Sales Goal: chatter's total sales across all creators
-    if (goal.userId) {
+    // Backward-compatibility: some older "creator revenue" goals were created with type=SALES + creatorId set.
+    if (goal.creatorId) {
+      const sales = await prisma.sale.aggregate({
+        where: {
+          creatorId: goal.creatorId,
+          saleDate: { gte: startDate, lte: endDate },
+        },
+        _sum: { amount: true },
+      });
+      current = sales._sum.amount || 0;
+    } else if (goal.userId) {
       current = await getUserSalesTotal(goal.userId, goal.month || 1, goal.year);
     }
   } else if (goal.type === 'COMMISSION' && goal.userId) {

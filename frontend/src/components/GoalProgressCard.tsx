@@ -22,6 +22,8 @@ export default function GoalProgressCard({ progress, onViewDetails, creatorDetai
   };
 
   const getGoalTypeLabel = () => {
+    // Backward-compatibility: older creator-revenue goals may have been saved with type=SALES + creatorId set.
+    if (goal.creatorId && goal.type === 'SALES') return 'Creator Revenue';
     if (goal.type === 'REVENUE') {
       if (goal.creatorId || goal.creator) return 'Creator Revenue';
       if (goal.userId || goal.user) return 'Global Revenue';
